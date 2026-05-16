@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Solver / model artifacts (reproducible)
+model/outputs/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Anthropic / agent tooling
+.claude/
+
+# Local copies of the FTG repo (cloned for data ingestion; data is now
+# vendored into ./data/)
+ftg_repo/
