@@ -426,6 +426,65 @@ def no_training_schedule() -> TrainingSchedule:
     return TrainingSchedule(name="no_training", runs=[])
 
 
+def cadence_passes_500_floor(cadence_days: int,
+                             sxm_fraction: float = SXM_FRACTION_DEFAULT,
+                             min_grid_mwh_per_day: float = 500.0,
+                             max_grid_mwh_per_day: float | None = None
+                             ) -> bool:
+    """Check that this cadence is both
+      - ≥ `min_grid_mwh_per_day` of natural training (per-release amortized)
+        — so the LP doesn't have to pad with the RFP floor; AND
+      - ≤ `max_grid_mwh_per_day` — i.e. every release window's compute
+        requirement fits inside the data centers' grid-power capacity.
+
+    R2 is the smallest non-initial release (governs the 500/day check);
+    the last full release before horizon end is the largest (governs the
+    feasibility upper bound).
+    """
+    if max_grid_mwh_per_day is None:
+        # Both sites at full 100-MWh/hr grid draw, 24 hours per day:
+        max_grid_mwh_per_day = 2 * SITE_POWER_CAPACITY_MW * 24.0
+    sch = equal_cadence_schedule(cadence_days,
+                                 sxm_fraction=sxm_fraction,
+                                 token_multiplier_scheme="constant")
+    rates = []
+    for run in sch.runs:
+        if run.is_initial:
+            continue
+        # The LP can only train during in-horizon hours. For runs whose
+        # release_date extends past horizon end, compute_mwh_required is
+        # already pro-rated; pair it with the in-horizon window length.
+        end_in_horizon = min(run.release_date, HORIZON_END)
+        days = max((end_in_horizon - run.window_start).days, 0)
+        if days <= 0:
+            continue
+        rates.append(run.grid_mwh_required / days)
+    if not rates:
+        return True
+    if min(rates) < min_grid_mwh_per_day:
+        return False
+    if max(rates) > max_grid_mwh_per_day:
+        return False
+    return True
+
+
+def refinement_cadences(winner_days: int,
+                        n: int = 6,
+                        frac: float = 0.30,
+                        sxm_fraction: float = SXM_FRACTION_DEFAULT
+                        ) -> List[int]:
+    """Generate `n` integer cadences within ±frac of `winner_days`, deduped,
+    filtered to those passing the 500 MWh/day floor."""
+    if winner_days <= 0:
+        return []
+    lo = max(1, int(round(winner_days * (1 - frac))))
+    hi = max(lo + n, int(round(winner_days * (1 + frac))))
+    import numpy as _np
+    raw = _np.linspace(lo, hi, n).round().astype(int).tolist()
+    deduped = sorted(set(raw))
+    return [c for c in deduped if cadence_passes_500_floor(c, sxm_fraction)]
+
+
 # ── Scenario flags ─────────────────────────────────────────────────────────
 @dataclass
 class Scenario:
