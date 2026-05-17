@@ -20,10 +20,9 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from data import load_historical_panel, OUT_DIR
+from data import OUT_DIR
 import assumptions as A
-from calibration import calibrate_joint
-from monte_carlo import simulate_paths, path_to_lp_inputs
+from monte_carlo import calibrate_and_simulate, path_to_lp_inputs
 from optimize import build_and_solve
 
 
@@ -47,31 +46,14 @@ def main():
     print(f"  n_paths={args.n_paths}, cadence={args.cadence}d, "
           f"scheme={args.scheme}, toll={args.toll}, bess={args.bess}")
 
-    print("\n[1/4] Loading 2025 historical data ...")
-    hourly_hist, daily_gas_hist = load_historical_panel()
-    print(f"  hourly: {len(hourly_hist):,} rows  "
-          f"({hourly_hist['datetime'].min()} → {hourly_hist['datetime'].max()})")
-    print(f"  HH gas: {len(daily_gas_hist):,} rows")
-
-    print("\n[2/4] Calibrating joint OU model (3 series) ...")
+    print("\n[1-3/4] Calibrating + simulating "
+          f"{args.n_paths} paths via monte_carlo.calibrate_and_simulate() ...")
     t0 = time.time()
-    model = calibrate_joint(hourly_hist, daily_gas_hist)
-    print(f"  done in {time.time()-t0:.1f}s")
-    print(f"  parameters:")
+    model, sim = calibrate_and_simulate(n_paths=args.n_paths, seed=args.seed)
+    print(f"  done in {time.time()-t0:.1f}s, sim shape={sim.paths.shape}")
     print(model.summary().to_string(index=False))
     print(f"  innovation correlation:")
     print(model.correlation.round(3))
-
-    print(f"\n[3/4] Simulating {args.n_paths} paths × 4392 hours × 3 vars ...")
-    t0 = time.time()
-    sim = simulate_paths(
-        model,
-        start=pd.Timestamp("2026-06-01"),
-        end=pd.Timestamp("2026-12-01"),
-        n_paths=args.n_paths,
-        seed=args.seed,
-    )
-    print(f"  done in {time.time()-t0:.1f}s, shape={sim.paths.shape}")
 
     print(f"\n[4/4] Running LP on each path (cadence={args.cadence}d, "
           f"scheme={args.scheme}) ...")

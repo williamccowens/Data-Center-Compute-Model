@@ -35,11 +35,10 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from data import load_price_panel, load_historical_panel, OUT_DIR
+from data import load_price_panel, OUT_DIR
 import assumptions as A
 from optimize import build_and_solve
-from calibration import calibrate_joint
-from monte_carlo import simulate_paths, path_to_lp_inputs
+from monte_carlo import calibrate_and_simulate, path_to_lp_inputs
 
 
 # ── Worker for ProcessPoolExecutor (must be top-level for pickling) ────
@@ -116,18 +115,10 @@ def run_deterministic(scenario, scheme):
 
 
 def run_monte_carlo(scenario, scheme, n_paths, seed):
-    print(f"\n[1] Calibrating OU model on 2025 actuals ...")
-    hist_h, hist_g = load_historical_panel()
-    model = calibrate_joint(hist_h, hist_g)
+    print(f"\n[1-2] Calibrating OU + simulating {n_paths} price paths via "
+          f"monte_carlo.calibrate_and_simulate() ...")
+    model, sim = calibrate_and_simulate(n_paths=n_paths, seed=seed)
     print(model.summary().to_string(index=False))
-
-    print(f"\n[2] Simulating {n_paths} price paths for 6/1/26 → 12/1/26 ...")
-    sim = simulate_paths(
-        model,
-        start=pd.Timestamp("2026-06-01"),
-        end=pd.Timestamp("2026-12-01"),
-        n_paths=n_paths, seed=seed,
-    )
 
     schedules = candidate_schedules(scheme)
     n_sched = len(schedules)

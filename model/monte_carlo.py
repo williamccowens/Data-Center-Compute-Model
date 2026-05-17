@@ -15,7 +15,8 @@ import pandas as pd
 import numpy as np
 from dataclasses import dataclass
 
-from calibration import JointModel
+from calibration import JointModel, calibrate_joint
+from data import load_historical_panel
 
 
 @dataclass
@@ -112,6 +113,26 @@ def simulate_paths(model: JointModel,
 
     return SimResult(timestamps=timestamps, paths=out,
                      var_names=var_names, params_used=model)
+
+
+def calibrate_and_simulate(n_paths: int,
+                           seed: int = 42,
+                           horizon_start: pd.Timestamp = pd.Timestamp("2026-06-01"),
+                           horizon_end:   pd.Timestamp = pd.Timestamp("2026-12-01")
+                           ) -> tuple[JointModel, SimResult]:
+    """One-stop: load 2025 historical → calibrate seasonal OU → simulate
+    `n_paths` forward paths over [horizon_start, horizon_end).
+
+    Returns (calibrated_model, simulation_result). Used by both the MC
+    driver (run_monte_carlo.py) and the MC mode of the headline driver
+    (run_planning_doc.py --mc N) so there's exactly one MC code path.
+    """
+    hist_h, hist_g = load_historical_panel()
+    model = calibrate_joint(hist_h, hist_g)
+    sim = simulate_paths(model,
+                         start=horizon_start, end=horizon_end,
+                         n_paths=n_paths, seed=seed)
+    return model, sim
 
 
 def path_to_lp_inputs(sim: SimResult, path_idx: int

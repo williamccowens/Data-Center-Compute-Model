@@ -5,20 +5,51 @@ LP that maximizes profit across the Houston and West data centers over
 `FinalVersion_Financing the Grid_Project_2026-1.pdf` and using ERCOT/Henry-Hub
 price data from `ltemry/FTG-Final-Project`.
 
-## Files
+## Files — organized by phase
+
+The top-level [README.md](../README.md) has the full phase ordering. Briefly:
+
+**Phase 0 — Core (imported, not run directly):**
 
 | File | Purpose |
 |---|---|
-| `assumptions.py` | Every numeric input from the RFP + planning doc + benchlm.ai. Edit here to override. |
-| `optimize.py` | v1 LP — RFP-style 500 MWh/day training floor, constant inference revenue. |
-| `optimize.py` | v2 LP — planning-doc-style training-schedule constraint, per-hour decaying inference revenue. |
-| `run_optimization.py` | v1 driver — 4 procurement scenarios under the flat training floor. |
-| `run_planning_doc.py` | headline driver — sweeps training cadences. Two modes: deterministic 2025-shifted prices (~30 sec) and `--mc N` Monte Carlo × cadences cartesian product, parallel across CPU cores (~10 min for N=30). |
-| `sensitivity.py` | Sweeps token-price scale across {1, 0.1, 0.01, 0.005, 0.001}. |
-| `halflife_sensitivity.py` | Sweeps token-decay half-life × retrain cadence. |
-| `outage_stress.py` | Uri-style and derate scenarios with per-site capacity caps. |
-| `sanity_check.py` | Confirms v1 training is placed in cheap hours and capacity binds. |
-| `outputs/` | All CSV results. |
+| `assumptions.py` | Every numeric input + Scenario flags + schedule generators + date→params→FLOPS→cMWh projection chain |
+| `data.py` | Price-panel loaders (proxy + historical), DST-corrected |
+| `calibration.py` | Seasonal log-OU fit (ported from `ltemry/FTG-Final-Project`) |
+| `monte_carlo.py` | Path simulator + `calibrate_and_simulate()` one-stop helper |
+| `optimize.py` | The LP — `build_and_solve()` with PuLP/CBC |
+
+**Phase 1 — Pre-flight:**
+
+| File | Purpose |
+|---|---|
+| `fit_growth_curves.py` | Refits param/FLOPS regressions from Epoch AI CSVs |
+
+**Phase 2 — Headline optimization:**
+
+| File | Purpose |
+|---|---|
+| `run_planning_doc.py` | Cadence sweep. `--mc N` for Monte Carlo × cadence cartesian (parallelized) |
+| `run_monte_carlo.py` | Single-cadence MC at higher N (faster when cadence comparison not needed) |
+
+**Phase 3 — Verification:**
+
+| File | Purpose |
+|---|---|
+| `verify_constraints.py` | Audits all 19 planning-doc constraints |
+| `confirm_chain.py` | Prints date→params→FLOPS→cMWh table |
+| `confirm_schedule.py` | Prints R(k+1).start = R(k).release chain |
+| `sanity_check.py` | R1 lockout, BESS dispatch, training floors |
+| `diagnose_mc.py` | MC path variability statistics |
+
+**Phase 4 — Subsidiary analyses:**
+
+| File | Purpose |
+|---|---|
+| `bess_sweep.py` | Procurement-option comparison at fixed cadence |
+| `halflife_sensitivity.py` | Token-decay halflife × cadence grid |
+
+| `outputs/` | LP result CSVs (gitignored) |
 
 ## How it's built
 

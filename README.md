@@ -16,7 +16,54 @@ profit-maximizing one.
 
 ---
 
-## Layout
+## Module organization
+
+The model is organized into four phases. Phase 1 produces inputs; Phase 2
+is the headline run; Phases 3-4 are diagnostics and side analyses that
+consume the same primitives.
+
+### Phase 0 — Core modules (imported, not run directly)
+
+| File | Purpose |
+|---|---|
+| `model/assumptions.py` | Every numeric input + Scenario flags + TrainingSchedule generators + date→params→FLOPS→cMWh projection chain |
+| `model/data.py` | `load_price_panel()` (2026 proxy from shifted 2025) and `load_historical_panel()` (un-shifted 2025 for calibration). DST/repeated-hour handling. |
+| `model/calibration.py` | Seasonal log-OU fit on 3 series (HB_HOUSTON / HB_WEST / Henry Hub) with empirical innovation correlation. Ported from `ltemry/FTG-Final-Project`. |
+| `model/monte_carlo.py` | `simulate_paths()` joint-OU price-path generator. `calibrate_and_simulate()` one-stop helper. `path_to_lp_inputs()` adapter to LP format. |
+| `model/optimize.py` | `build_and_solve()` — the LP (PuLP / CBC). |
+
+### Phase 1 — Pre-flight (run once, when source data changes)
+
+| Script | Produces |
+|---|---|
+| `python model\fit_growth_curves.py` | Refits the param-vs-date and FLOPS-vs-params regressions on the Epoch AI CSVs. Coefficients are pasted into `assumptions.py` (PARAM_FIT_*, FLOPS_FIT_*). Re-run only if the source CSVs in `data/` change. |
+
+### Phase 2 — Headline optimization (the main run)
+
+| Command | What it does |
+|---|---|
+| `python model\run_planning_doc.py` | **Deterministic** — 2025-shifted price proxy, sweeps all candidate cadences, picks the winner. ~30 sec. |
+| `python model\run_planning_doc.py --mc 30` | **Monte Carlo × cadence cartesian** — for each of N simulated price paths, sweeps every cadence and picks the per-path optimum. Reports win frequency + best-per-path profit distribution. Parallelized. ~10 min for N=30. |
+| `python model\run_monte_carlo.py -n 50` | MC distribution at a **single fixed cadence** (default 60d). Faster than full cartesian when you don't need the cadence comparison. |
+
+### Phase 3 — Verification (confirms the LP is doing what we think)
+
+| Script | Checks |
+|---|---|
+| `python model\verify_constraints.py` | Audits all 19 planning-doc constraints (per-site grid cap, compute cap, power balance, R1 inference lockout, per-release training floors, BESS dynamics). |
+| `python model\confirm_chain.py` | Prints the date→params→FLOPS→cMWh table for R1-R5. |
+| `python model\confirm_schedule.py` | Prints schedule chaining: every `R(k+1).start = R(k).release ✓` for each cadence. |
+| `python model\sanity_check.py` | Confirms R1 inference lockout fires, training meets every floor, BESS sell-to-grid captures spread. |
+| `python model\diagnose_mc.py` | Prints MC path-level price statistics: path-to-path std at sample hours, min/max across paths. |
+
+### Phase 4 — Subsidiary analyses
+
+| Script | Question |
+|---|---|
+| `python model\bess_sweep.py` | Does BESS pay back? Tolling? Compares the 4 procurement scenarios at monthly cadence. |
+| `python model\halflife_sensitivity.py` | How sensitive is the optimal cadence to the assumed token-decay halflife? Sweeps 30-120 days × cadence. |
+
+### Layout
 
 ```
 data/                                           ← vendored source data
@@ -26,22 +73,8 @@ data/                                           ← vendored source data
   artificial-intelligence-parameter-count.csv   ← Epoch AI param series
   ai-training-computation-vs-parameters.csv     ← Epoch AI compute series
 model/
-  assumptions.py             ← every numeric input + scenario flags + projection chain
-  optimize.py                ← the LP (PuLP / CBC)
-  data.py                    ← price-panel loader (DST-corrected)
-  run_planning_doc.py        ← headline cadence sweep
-  bess_sweep.py              ← BESS + sell-to-grid sweep
-  halflife_sensitivity.py    ← cadence × token-decay half-life grid
-  verify_constraints.py      ← audits every planning-doc constraint (19/19 PASS)
-  sanity_check.py            ← spot-checks R1 lockout + BESS dispatch
-  confirm_chain.py           ← prints date → params → FLOPS → cMWh for R1–R5
-  confirm_schedule.py        ← prints R(k+1).start = R(k).release chain
-  fit_growth_curves.py       ← refits params(date) and FLOPS(params)
-  calibration.py             ← seasonal Ornstein-Uhlenbeck calibration (ported from FTG)
-  monte_carlo.py             ← N-path joint price simulator
-  run_monte_carlo.py         ← MC driver: calibrate → simulate → solve LP × N → distribution
-  README.md                  ← model-level documentation + constraint cross-reference
-Final Project Planning .docx ← source brief from project team
+  outputs/                                      ← LP results CSVs (gitignored)
+Final Project Planning .docx                    ← source brief from project team
 ```
 
 ---
