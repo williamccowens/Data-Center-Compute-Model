@@ -36,25 +36,54 @@ Phase A — pick a cadence under price uncertainty
     mandatory 500 MWh/day RFP training floor and the 4,800 MWh/day grid
     capacity check):
       For each of N MC-simulated price paths p:
-        Solve the LP(prices_p, gas_p, scenario, cadence_c)
+        Solve the LP(prices_p, gas_p, scenario_all_on, cadence_c)
       Mean profit across paths → score for cadence c
-    Stage 1 sweeps 6–12 broad cadences.
+    Stage 1 sweeps 6–12 broad cadences (filter trims both ends).
     Stage 2 refines 6 cadences ±30 % around the Stage-1 winner.
-    Winner = highest mean profit ⇒ expected-value-optimal cadence under
-    price uncertainty.
+    Winner = highest mean profit ⇒ expected-value-optimal cadence
+    (with all procurement options enabled).
 
-Phase B — locked-cadence reporting
-    For the winning cadence, re-solve across every MC path and report:
-      • averaged-across-paths cost breakdown (LMP, toll, BESS arb, profit)
-      • profit distribution (mean / std / p05 / p50 / p95)
-      • LP's hourly procurement choices: averaged with ±std for every
-        decision variable, plus full per-path hourly schedules saved to CSV
+Phase B — locked-cadence diagnostic
+    Report averaged-across-paths metrics at c* assuming all-on
+    procurement. Useful for seeing what the LP does when given every
+    option (marginal-cost view, BESS gets used regardless of lease NPV).
+
+Phase C — procurement optimization at locked cadence
+    At c*, sweep all 8 procurement combos (toll on/off × BESS placement
+    {none, Houston, West, both}) across N paths. Pick the combo with
+    highest mean profit INCLUDING BESS lease fixed costs. This filters
+    out negative-NPV options (e.g. BESS at $3M lease when arb only
+    covers $0.75M) that the LP would otherwise "use" because it sees
+    only marginal costs.
+
+Verification — confirm cadence under optimal procurement
+    Re-run a tight ±30 % cadence neighborhood under Phase C's optimal
+    procurement. Confirms the cadence winner doesn't shift when the
+    negative-NPV options are removed. In practice it doesn't, because
+    cadence-vs-cadence gaps (~$3 B+) dwarf procurement-vs-procurement
+    differences (~$5 M).
+
+Final hourly schedule
+    Re-solve the LP on every MC path with (verified cadence, optimal
+    procurement) and save the full hourly decision variables (g_lmp,
+    g_toll, train, inf, train_compute_mwh, inf_compute_mwh, train_flops,
+    inf_tokens, plus BESS dispatch if enabled). Console prints a 24-hour
+    averaged sample with ±std across paths.
 ```
 
 Default `python model\run_planning_doc.py` runs the above with N=50 MC
 paths under the `doc_blended` token-multiplier scheme (quality uplift ×
-60-day market decay), the mandatory RFP 500 MWh/day training floor, and
-BESS+toll enabled at both sites. ~25 min on a 12-core box.
+60-day market decay) and the mandatory RFP 500 MWh/day training floor.
+~30 min on a 12-core box.
+
+**Latest result (N=3 smoke test):**
+
+| Step | Result |
+|---|---|
+| Phase A cadence winner | **30 days (monthly)** at $95,042.9M (with all-on procurement) |
+| Phase C procurement winner | **LMP + Houston tolling, no BESS** at $95,044.1M |
+| Verification | 30 days confirmed under LMP+toll procurement |
+| **FINAL POLICY** | **30d × (LMP + Houston tolling, no BESS) → $95,044.11M mean profit** |
 
 ---
 
@@ -84,7 +113,7 @@ consume the same primitives.
 | File | Role |
 |---|---|
 | `model/optimize.py` | **The LP.** `build_and_solve(prices, gas, scenario, schedule)` constructs and solves the linear program. This is what the drivers call N times (one per MC price path) with the same scenario/schedule. |
-| `python model\run_planning_doc.py` | **Headline driver.** Default mode runs Monte Carlo with **N=50 price paths × cadence cartesian** (~25 min on 11 parallel workers). Picks the cadence with highest *mean profit across paths* — committing under price uncertainty, not on a single deterministic realization. Stage 2 refines around the winner. |
+| `python model\run_planning_doc.py` | **Headline driver.** Default runs four sequential phases on N=50 MC price paths (~30 min): **(A)** cadence selection with all-on procurement, **(B)** locked-cadence diagnostic, **(C)** procurement optimization at c* including BESS lease fixed costs, **(verify)** confirm cadence under optimal procurement, **(hourly)** save full LP schedule for the joint optimum. |
 | `python model\run_planning_doc.py --mc 100` | Production estimate with tighter percentiles (~50 min). |
 | `python model\run_planning_doc.py --mc 10` | Quick check (~5 min). Std error larger but the cadence ranking is usually stable. |
 | `python model\run_planning_doc.py --mc 0` | Opt out of MC, run on the single deterministic 2025-shifted proxy (~3 min). Answer is for *one* price realization only — use for debugging / quick sanity. |
@@ -191,17 +220,23 @@ python model\run_planning_doc.py --no-bess --scheme constant
 python model\run_planning_doc.py --include-no-training   # add baseline to candidate set
 ```
 
-**The headline driver runs in two explicit phases:**
+**The headline driver runs in four sequential phases (~30 min at N=50):**
 
 - **Phase A — Cadence selection.** For each candidate cadence (filtered by
   500 MWh/day floor + grid-capacity check), solve the LP across all N MC
   paths in parallel and average per-path profits. Stage 1 sweeps the
   filtered broad set, Stage 2 refines 6 cadences ±30 % around the
   Stage-1 winner. Pick the cadence with highest mean profit across paths.
-- **Phase B — Locked-cadence reporting.** Re-solve the winning cadence on
-  every path and report averaged-across-paths metrics: cost breakdown,
-  procurement mix (LMP / toll / BESS), profit distribution, and an
-  hourly schedule with `mean ± std` for every decision variable.
+- **Phase B — Locked-cadence diagnostic.** Report averaged metrics at c*
+  with all-on procurement. Shows what the LP does given every option
+  (marginal-cost view, lease costs not yet factored in).
+- **Phase C — Procurement optimization.** At c*, sweep 8 procurement combos
+  (toll × BESS placement) and pick the combo with highest mean profit
+  INCLUDING fixed costs (BESS lease). Strips out negative-NPV options.
+- **Verification + final hourly.** Confirm cadence winner under optimal
+  procurement, then save the per-path and averaged hourly schedules for
+  the optimal policy (g_lmp, g_toll, train, inf, compute-MWh and FLOPS
+  versions, BESS dispatch if enabled).
 
 ### Current defaults (changed from earlier versions)
 
