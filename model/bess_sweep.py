@@ -1,74 +1,162 @@
 """
-BESS sweep with full v3 framework + sell-to-grid optionality.
+2×2 procurement-option ablation: BESS × Tolling, evaluated across N MC
+price paths so the marginal value of each option reflects price-path
+uncertainty rather than a single realization.
 
-For the best cadence (monthly), compare:
-  - LMP only
-  - LMP + Houston tolling
-  - LMP + tolling + BESS (with sell-to-grid)
-and report how much BESS revenue comes from each path (DC vs grid).
+Holds cadence fixed (default monthly = 30d, the headline winner) and the
+token-pricing scheme fixed (default doc_blended). Sweeps the four
+combinations of `use_houston_tolling` and `use_bess`, calling
+`optimize.solve_across_paths` for each so every scenario gets N LP solves
+in parallel.
+
+Output:
+  - mean / std / p05 / p95 profit per scenario across paths
+  - mean delta vs the LMP-only baseline (= marginal value of each option
+    under uncertainty)
+  - averaged BESS arb mechanics (charge MWh, dis to DC, dis to grid,
+    net arbitrage $) across paths
+  - CSV in model/outputs/
+
+Runtime: 4 scenarios × N paths in parallel. With 11 workers, ~50 sec/
+scenario at N=50 → ~3–4 min total.
 """
 from __future__ import annotations
 import sys
 from pathlib import Path
+import argparse
+import time
+import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from data import load_price_panel, OUT_DIR
+from data import OUT_DIR
 import assumptions as A
-from optimize import build_and_solve
+from monte_carlo import calibrate_and_simulate, path_to_lp_inputs
+from optimize import solve_across_paths, average_breakdowns
 
 
 def main():
-    prices, gas = load_price_panel()
+    p = argparse.ArgumentParser()
+    p.add_argument("--mc",      type=int,   default=50,
+                   help="Number of Monte-Carlo price paths (default 50, "
+                        "~3 min total)")
+    p.add_argument("--cadence", type=int,   default=30,
+                   help="Training cadence in days (default 30 — headline winner)")
+    p.add_argument("--scheme",  default="doc_blended",
+                   choices=["constant", "quality_uplift",
+                            "market_decay", "doc_blended"],
+                   help="Token-revenue multiplier scheme (default doc_blended)")
+    p.add_argument("--seed",    type=int,   default=42)
+    args = p.parse_args()
 
-    # Use the constant-multiplier scheme so we isolate procurement effects.
-    sch = A.equal_cadence_schedule(30, token_multiplier_scheme="constant")
+    print(f"BESS × Toll ablation, MC N={args.mc}, cadence={args.cadence}d, "
+          f"scheme={args.scheme}")
+    print()
 
+    # ── Build N price paths ─────────────────────────────────────────────
+    print(f"[1/2] Calibrating + simulating {args.mc} MC paths ...")
+    model, sim = calibrate_and_simulate(n_paths=args.mc, seed=args.seed)
+    prices_list, gas_list = [], []
+    for i in range(args.mc):
+        p_i, g_i = path_to_lp_inputs(sim, i)
+        prices_list.append(p_i)
+        gas_list.append(g_i)
+
+    schedule = A.equal_cadence_schedule(args.cadence,
+                                        token_multiplier_scheme=args.scheme)
+
+    # Four (use_toll, use_bess) combinations
     scenarios = [
-        ("LMP only",              A.Scenario(use_houston_tolling=False, use_bess=False)),
-        ("LMP + Houston toll",    A.Scenario(use_houston_tolling=True,  use_bess=False)),
-        ("LMP + BESS (both)",     A.Scenario(use_houston_tolling=False, use_bess=True)),
-        ("LMP + toll + BESS",     A.Scenario(use_houston_tolling=True,  use_bess=True)),
+        ("LMP only",            A.Scenario(use_houston_tolling=False, use_bess=False)),
+        ("LMP + Houston toll",  A.Scenario(use_houston_tolling=True,  use_bess=False)),
+        ("LMP + BESS (both)",   A.Scenario(use_houston_tolling=False, use_bess=True)),
+        ("LMP + toll + BESS",   A.Scenario(use_houston_tolling=True,  use_bess=True)),
     ]
 
+    # ── For each scenario, solve the LP across all paths ────────────────
+    print(f"\n[2/2] Solving {len(scenarios)} scenarios × {args.mc} paths "
+          f"= {len(scenarios)*args.mc} LP runs ...")
     rows = []
+    raw_results: dict[str, list[dict]] = {}
     for name, scen in scenarios:
-        res = build_and_solve(prices, gas, scen, sch, solver_msg=False)
-        h = res.hourly
-        profit = h["profit"].sum()
-        if scen.use_bess:
-            profit -= len(scen.bess_sites) * A.BESS_6MO_LEASE_COST
-        bess_dc   = h.get("dis_dc",   pd.Series(0)).sum()
-        bess_grid = h.get("dis_grid", pd.Series(0)).sum()
-        bess_ch   = h.get("ch",       pd.Series(0)).sum()
-        row = {
-            "scenario": name,
-            "profit_$M":      profit / 1e6,
-            "rev_inf_$M":     h["revenue_inf"].sum()  / 1e6,
-            "rev_bess_$M":    h["revenue_bess"].sum() / 1e6,
-            "lmp_cost_$M":    h["cost_lmp"].sum() / 1e6,
-            "toll_cost_$M":   h["cost_toll"].sum() / 1e6,
-            "bess_ch_cost_$M":  h["cost_bess_ch"].sum() / 1e6,
-            "bess_lease_$M":  (len(scen.bess_sites) * A.BESS_6MO_LEASE_COST / 1e6
-                               if scen.use_bess else 0.0),
-            "bess_ch_mwh":     bess_ch,
-            "bess_dis_dc_mwh": bess_dc,
-            "bess_dis_grid_mwh": bess_grid,
-        }
-        rows.append(row)
-        print(f"{name:<22}  profit=${profit/1e6:>11,.1f}M")
-        if scen.use_bess:
-            print(f"  BESS: ch={bess_ch:>7,.0f} MWh  dis_dc={bess_dc:>7,.0f}  "
-                  f"dis_grid={bess_grid:>7,.0f}  arb_$={h['revenue_bess'].sum()/1e6:>6,.1f}M  "
-                  f"net=${(h['revenue_bess'].sum()-h['cost_bess_ch'].sum())/1e6:+,.1f}M")
+        t0 = time.time()
+        breakdowns = solve_across_paths(prices_list, gas_list, scen, schedule,
+                                         parallel=True,
+                                         progress_label=name.replace(' ', '_'))
+        raw_results[name] = breakdowns
+        profits = np.array([b["profit_$M"] for b in breakdowns])
+        avg = average_breakdowns(breakdowns)
+        rows.append({
+            "scenario":      name,
+            "mean_$M":       profits.mean(),
+            "std_$M":        profits.std(),
+            "p05_$M":        np.percentile(profits, 5),
+            "p95_$M":        np.percentile(profits, 95),
+            # Procurement & BESS mechanics, averaged across paths
+            "rev_bess_$M":   avg["rev_bess_grid_$M"],
+            "lmp_cost_$M":   avg["cost_lmp_$M"],
+            "toll_cost_$M":  avg["cost_toll_$M"],
+            "bess_ch_$M":    avg["cost_bess_ch_$M"],
+            "bess_lease_$M": avg["bess_lease_$M"],
+            "ch_mwh":        avg["bess_ch_total_mwh"],
+            "dis_dc_mwh":    avg["bess_dis_dc_mwh"],
+            "dis_grid_mwh":  avg["bess_dis_grid_mwh"],
+            "solve_s":       time.time() - t0,
+        })
+        print(f"  {name:<25}  mean=${profits.mean():>10,.1f}M  "
+              f"std=${profits.std():.2f}M  ({time.time()-t0:.0f}s)")
 
     df = pd.DataFrame(rows)
-    df.to_csv(OUT_DIR / "bess_sweep_v3.csv", index=False)
+
+    # ── Mean deltas vs the LMP-only baseline (marginal value of options) ─
+    base_profits = np.array([b["profit_$M"] for b in raw_results["LMP only"]])
+    delta_rows = []
+    for name in [s[0] for s in scenarios]:
+        scen_profits = np.array([b["profit_$M"] for b in raw_results[name]])
+        delta = scen_profits - base_profits          # per-path delta
+        delta_rows.append({
+            "scenario":     name,
+            "delta_mean":   delta.mean(),
+            "delta_std":    delta.std(),
+            "delta_p05":    np.percentile(delta, 5),
+            "delta_p95":    np.percentile(delta, 95),
+        })
+    delta_df = pd.DataFrame(delta_rows)
+
+    # ── Report ──────────────────────────────────────────────────────────
     print()
-    print("Delta vs LMP-only base:")
-    base = df.iloc[0]["profit_$M"]
-    df["delta_$M"] = df["profit_$M"] - base
-    print(df[["scenario", "profit_$M", "delta_$M"]].to_string(index=False))
+    print("=" * 90)
+    print(f"PROFIT BY SCENARIO  ($M, across {args.mc} paths)")
+    print("=" * 90)
+    cols = ["scenario", "mean_$M", "std_$M", "p05_$M", "p95_$M"]
+    print(df[cols].to_string(index=False, float_format=lambda x: f"{x:,.2f}"))
+
+    print()
+    print("=" * 90)
+    print(f"MARGINAL VALUE vs LMP-only  ($M, per-path delta then averaged)")
+    print("=" * 90)
+    print(delta_df.to_string(index=False, float_format=lambda x: f"{x:+,.2f}"))
+
+    print()
+    print("=" * 90)
+    print("BESS MECHANICS (averaged across paths)")
+    print("=" * 90)
+    bess_rows = df[df["scenario"].str.contains("BESS")][
+        ["scenario", "ch_mwh", "dis_dc_mwh", "dis_grid_mwh",
+         "rev_bess_$M", "bess_ch_$M", "bess_lease_$M"]
+    ]
+    print(bess_rows.to_string(index=False, float_format=lambda x: f"{x:,.0f}"))
+    print()
+    print("BESS net (rev_bess − bess_ch − bess_lease, $M):")
+    for _, r in bess_rows.iterrows():
+        net = r["rev_bess_$M"] - r["bess_ch_$M"] - r["bess_lease_$M"]
+        print(f"  {r['scenario']:<25}  ${net:+,.2f}M")
+
+    out_path = OUT_DIR / f"bess_sweep_mc_n{args.mc}_{args.scheme}_c{args.cadence}.csv"
+    df.to_csv(out_path, index=False)
+    delta_df.to_csv(OUT_DIR / f"bess_sweep_deltas_n{args.mc}_{args.scheme}.csv",
+                    index=False)
+    print(f"\nSaved → {out_path.name} (+ deltas CSV)")
 
 
 if __name__ == "__main__":
