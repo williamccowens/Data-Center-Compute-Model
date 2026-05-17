@@ -46,7 +46,7 @@ The top-level [README.md](../README.md) has the full phase ordering. Briefly:
 
 | File | Purpose |
 |---|---|
-| `bess_sweep.py` | Procurement-option comparison at fixed cadence |
+| `power_procurement_sweep.py` | Marginal-value ablation of toll × BESS placement (8 scenarios), MC-driven, fixed cadence. Answers "what's each option worth on its own?" |
 | `halflife_sensitivity.py` | Token-decay halflife × cadence grid |
 
 | `outputs/` | LP result CSVs (gitignored) |
@@ -382,7 +382,7 @@ python model\outage_stress.py        # 5 outage scenarios
 # v2/v3 — planning-doc training framework:
 python model\run_planning_doc.py     # training-cadence sweep (headline result)
 python model\halflife_sensitivity.py # robustness to the token-decay half-life
-python model\bess_sweep.py           # BESS at both sites + sell-to-grid optionality
+python model\power_procurement_sweep.py           # Marginal value of toll × BESS placement (8 scenarios)
 python model\verify_constraints.py   # audit every planning-doc constraint
 python model\sanity_check_v3.py      # confirm R1=100%-compute, decay+BESS firing
 

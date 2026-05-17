@@ -1,11 +1,29 @@
 """
-2-toll × 4-BESS-placement procurement ablation (= 8 scenarios), evaluated
-across N MC price paths so the marginal value of each option reflects
-price-path uncertainty rather than a single realization.
+Marginal-value ablation for the two power-procurement decisions: Houston
+tolling (on / off) × BESS placement (none / Houston / West / both).
+Eight scenarios total, each solved across N MC price paths.
 
-BESS placement is now asymmetric — the Houston site has tolling
-competing for arbitrage opportunities, while West has no tolling option,
-so a battery at West has a richer arb landscape than one at Houston.
+==============================================================================
+WHAT THIS ANSWERS vs run_planning_doc.py
+==============================================================================
+  run_planning_doc.py — varies CADENCE, fixes procurement at default ON.
+    Question: "What's the optimal training cadence under price uncertainty?"
+    Reports the LP's *chosen* procurement mix (averaged) but doesn't
+    isolate the marginal $ value of any single option.
+
+  power_procurement_sweep.py — varies PROCUREMENT, fixes cadence at the
+  headline winner (default 30 days).
+    Question: "Given the optimal cadence, what is the marginal $ value
+    of each procurement option (toll, BESS-Houston, BESS-West, BESS-both)
+    under price uncertainty?" Computes per-path paired deltas so the
+    marginal value reflects MC realizations, not a single proxy path.
+
+  Together they cover the full policy decision: cadence + procurement.
+==============================================================================
+
+BESS placement is asymmetric — Houston has tolling competing for the
+arbitrage opportunities a battery would otherwise exploit, while West
+has no tolling option, so a battery at West faces a richer arb landscape.
 The sweep tests every combination:
     BESS:  (none, Houston-only, West-only, both)  ×  Toll:  (off, on)
 
@@ -175,9 +193,9 @@ def main():
         net = r["rev_bess_$M"] - r["bess_ch_$M"] - r["bess_lease_$M"]
         print(f"  {r['scenario']:<25}  ${net:+,.2f}M")
 
-    out_path = OUT_DIR / f"bess_sweep_mc_n{args.mc}_{args.scheme}_c{args.cadence}.csv"
+    out_path = OUT_DIR / f"power_procurement_mc_n{args.mc}_{args.scheme}_c{args.cadence}.csv"
     df.to_csv(out_path, index=False)
-    delta_df.to_csv(OUT_DIR / f"bess_sweep_deltas_n{args.mc}_{args.scheme}.csv",
+    delta_df.to_csv(OUT_DIR / f"power_procurement_deltas_n{args.mc}_{args.scheme}.csv",
                     index=False)
     print(f"\nSaved → {out_path.name} (+ deltas CSV)")
 

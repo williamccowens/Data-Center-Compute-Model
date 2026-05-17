@@ -26,7 +26,7 @@ hour h and each site s ∈ {Houston, West}:
 
 BESS placement is also a **decision** — `Scenario.bess_sites` lets you
 enable BESS at Houston only, West only, both, or neither. Tolling is
-Houston-only by RFP. Both choices are evaluated in `bess_sweep.py`.
+Houston-only by RFP. Both choices are evaluated in `power_procurement_sweep.py`.
 
 ## How the headline run works
 
@@ -145,7 +145,7 @@ hourly `train / inf` split — there is no separate "decider" module.
 
 | Script | Question |
 |---|---|
-| `python model\bess_sweep.py` | Does BESS pay back? Tolling? Compares the 4 procurement scenarios at monthly cadence. |
+| `python model\power_procurement_sweep.py` | What is each power-procurement option worth on its own? Computes per-path paired Δprofit for all 8 combos of (toll on/off) × (BESS placement: none / Houston / West / both). Holds cadence at the headline winner so the LP variation isolates procurement value. |
 | `python model\halflife_sensitivity.py` | How sensitive is the optimal cadence to the assumed token-decay halflife? Sweeps 30-120 days × cadence. |
 
 ### Layout
@@ -262,7 +262,7 @@ captures:
 
 ```powershell
 # BESS + sell-to-grid sweep — shows arbitrage value at each procurement mix
-python model\bess_sweep.py
+python model\power_procurement_sweep.py
 
 # Sensitivity: cadence × token-decay half-life
 python model\halflife_sensitivity.py
