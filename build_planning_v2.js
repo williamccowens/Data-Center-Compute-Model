@@ -434,18 +434,19 @@ const content = [
     " — currently default 50 for production runs. 200+ would tighten confidence intervals on procurement decisions where the gap is small (Phase-C gaps are ~$5 M while paths-stdev is ~$30 M).",
   ),
 
-  H2("Constraints from the RFP not yet modelled"),
+  H2("Constraints from the RFP partially covered, not yet ported into the LP"),
+  P("The FTG repo (ltemry/FTG-Final-Project) contains `src/phase4_intermittency_stress.py`, which addresses intermittency and tail-risk events indirectly — by reading them out of LMP signatures rather than modelling wind/solar generation directly. We have vendored the OU calibration and MC simulator from that repo, but have not yet ported phase 4. Open items:"),
   BULLET_R(
-    { text: "Wind-solar intermittency / MIHR", bold: true },
-    " — the RFP asks for a substantive discussion citing ERCOT data; the LP currently treats grid power as always available at LMP, with no capacity-factor reduction. Could be added either as a stochastic capacity_factor[h] or by penalizing high-LMP hours that correlate with low renewable output.",
+    { text: "Wind-solar intermittency / MIHR (qualitative)", bold: true },
+    " — phase 4 in the FTG repo computes diurnal LMP percentile profiles, the evening-ramp premium (hour-18 − hour-14, capturing solar dropoff), and negative-LMP frequency at HB_WEST (wind-oversupply proxy). These are LMP-implied signatures of renewable variability, which is consistent with the RFP's request for a substantive discussion citing ERCOT data. Action item: include these diagnostics in the report and decide whether to also overlay them as constraints in the LP.",
   ),
   BULLET_R(
-    { text: "Unscheduled-outage scenarios", bold: true },
-    " — RFP prescribes specific outage contingencies. Currently not modelled; would enter as a forced reduction in g_lmp + g_toll capacity over an outage window.",
+    { text: "Capacity-factor derate (true MIHR-style)", bold: true },
+    " — distinct from the LMP-signature view above. Our LP currently assumes capacity_factor = 1.0 (full 100 MW/site at every hour). A direct MIHR model would multiply the per-site grid cap by a stochastic capacity_factor[h] ≤ 1 driven by renewables + transmission. Not implemented; phase 4 doesn't do this either (it works on prices, not capacity).",
   ),
   BULLET_R(
-    { text: "Capacity factor", bold: true },
-    " — currently 1.0 uniformly. Could be derated for transmission constraints, weather, planned maintenance.",
+    { text: "Unscheduled-outage / Uri-style stress", bold: true },
+    " — phase 4 overlays three winter-storm analogs on the MC paths (mild 72h cold snap, moderate Uri at $500–1500/MWh + $20/MMBtu gas, full Uri replay at the $9000/MWh cap + $250/MMBtu gas) and values the toll option as tail insurance. The scenarios exist; they are not currently injected into our MC paths. Action item: port the spike-injection logic into `monte_carlo.simulate_paths` (or a wrapper), then re-run Phase C — we expect the toll option's value to rise materially.",
   ),
 
   // ── REPORT skeleton (left blank; user will fill in) ──────────────
