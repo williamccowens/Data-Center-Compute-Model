@@ -210,6 +210,136 @@ def phase_b_report(winner_cad: int,
           f"mean profit ${avg['profit_$M']:,.1f}M")
 
 
+# ──────────────────────────────────────────────────────────────────────
+# PHASE C — Procurement optimization at the locked cadence
+# ──────────────────────────────────────────────────────────────────────
+
+def phase_c_procurement_optimization(winner_cad, prices_list, gas_list,
+                                     scheme, n_paths):
+    """At the cadence locked by Phase A, sweep the 8 procurement options
+    (toll on/off × BESS placement {none, Houston, West, both}) including
+    BESS lease fixed costs. Pick the procurement combo with highest mean
+    profit across paths. Returns the optimal Scenario for downstream use.
+
+    Phase A holds procurement at "all on" and varies cadence. Phase C
+    inverts: holds cadence at the Phase A winner and varies procurement.
+    Then the headline output uses the BEST combination of both — so we
+    don't report metrics from a scenario that's paying for a lease
+    (BESS) whose marginal value is negative."""
+    print()
+    print("=" * 78)
+    print(f"PHASE C — Procurement optimization at cadence {_label(winner_cad)}")
+    print("=" * 78)
+
+    if winner_cad > 0:
+        sch = A.equal_cadence_schedule(winner_cad, token_multiplier_scheme=scheme)
+    else:
+        sch = A.no_training_schedule()
+
+    def _scen(toll, bess_sites_label):
+        kwargs = {"use_houston_tolling": toll}
+        if bess_sites_label is None:
+            kwargs["use_bess"] = False
+        else:
+            kwargs["use_bess"]   = True
+            kwargs["bess_sites"] = bess_sites_label
+        return A.Scenario(**kwargs)
+
+    scenarios = [
+        ("LMP only",                       _scen(False, None)),
+        ("LMP + toll",                     _scen(True,  None)),
+        ("LMP + BESS Houston",             _scen(False, ("HOUSTON",))),
+        ("LMP + BESS West",                _scen(False, ("WEST",))),
+        ("LMP + BESS both",                _scen(False, ("HOUSTON", "WEST"))),
+        ("LMP + toll + BESS Houston",      _scen(True,  ("HOUSTON",))),
+        ("LMP + toll + BESS West",         _scen(True,  ("WEST",))),
+        ("LMP + toll + BESS both",         _scen(True,  ("HOUSTON", "WEST"))),
+    ]
+
+    rows = []
+    best_name, best_scenario, best_mean = None, None, -float("inf")
+    for name, scen in scenarios:
+        bds = solve_across_paths(prices_list, gas_list, scen, sch,
+                                 parallel=True,
+                                 progress_label=name.replace(' ', '_'))
+        profits = np.array([b["profit_$M"] for b in bds])
+        mean_p = float(profits.mean())
+        rows.append({
+            "scenario": name,
+            "use_toll": scen.use_houston_tolling,
+            "bess_sites": ",".join(scen.bess_sites) if scen.use_bess else "",
+            "mean_$M":  mean_p,
+            "std_$M":   float(profits.std()),
+            "p05_$M":   float(np.percentile(profits, 5)),
+            "p95_$M":   float(np.percentile(profits, 95)),
+        })
+        if mean_p > best_mean:
+            best_name, best_scenario, best_mean = name, scen, mean_p
+        print(f"  {name:<25}  mean=${mean_p:>11,.2f}M  "
+              f"std=${profits.std():.2f}M")
+
+    df = pd.DataFrame(rows).sort_values("mean_$M", ascending=False)
+    df.to_csv(OUT_DIR / f"phase_c_procurement_n{n_paths}_{scheme}.csv",
+              index=False)
+
+    print()
+    print("Procurement ranking (mean profit across paths, $M):")
+    print(df[["scenario", "mean_$M", "std_$M", "p05_$M", "p95_$M"]]
+          .to_string(index=False, float_format=lambda x: f"{x:,.2f}"))
+
+    print(f"\n⭐ Optimal procurement: {best_name}  →  ${best_mean:,.2f}M mean profit")
+    return best_scenario, best_name, best_mean
+
+
+def verify_cadence_under_optimal_procurement(initial_winner_cad,
+                                             best_scenario,
+                                             prices_list, gas_list,
+                                             scheme, n_paths):
+    """Cheap verification step. Phase A picked the cadence assuming all
+    procurement options ON; Phase C then found the OPTIMAL procurement.
+    In principle the cadence ranking could shift under the optimal
+    procurement (in practice it doesn't because cadence-vs-cadence profit
+    gaps are ~$3B+ while procurement-vs-procurement gaps are ~$5M, a
+    1000× ratio). This step re-solves a tight neighborhood of cadences
+    [Stage-1 winner ± 30%] under the Phase C optimal procurement to
+    confirm the cadence winner doesn't flip.
+    """
+    print()
+    print("=" * 78)
+    print(f"VERIFICATION — Re-checking cadence winner under optimal procurement")
+    print("=" * 78)
+
+    # Tight set: winner + ±30 % neighborhood, filtered
+    refined = sorted(set([initial_winner_cad]
+                         + A.refinement_cadences(initial_winner_cad, n=6, frac=0.30)))
+    refined = [c for c in refined if A.cadence_passes_500_floor(c)]
+    print(f"  Testing cadences: {[_label(c) for c in refined]}")
+
+    results = {}
+    for c in refined:
+        sch = A.equal_cadence_schedule(c, token_multiplier_scheme=scheme)
+        bds = solve_across_paths(prices_list, gas_list, best_scenario, sch,
+                                 parallel=True,
+                                 progress_label=f"V {_label(c)}")
+        mean_p = float(np.mean([b["profit_$M"] for b in bds]))
+        results[c] = mean_p
+        flag = " ← initial winner" if c == initial_winner_cad else ""
+        print(f"  {_label(c):<10}  mean=${mean_p:>11,.2f}M{flag}")
+
+    verified_winner = max(results, key=results.get)
+    confirmed = (verified_winner == initial_winner_cad)
+    if confirmed:
+        print(f"\n  ✓ Cadence winner confirmed: {_label(initial_winner_cad)} "
+              f"is still optimal under {best_scenario}")
+    else:
+        print(f"\n  ⚠ Cadence shifted under optimal procurement:")
+        print(f"      initial (all-on procurement): {_label(initial_winner_cad)}")
+        print(f"      verified (optimal procurement): {_label(verified_winner)}")
+        print(f"      Δ profit: ${results[verified_winner] - results[initial_winner_cad]:+,.2f}M")
+        print(f"  → Using {_label(verified_winner)} for final hourly schedule")
+    return verified_winner, confirmed
+
+
 def save_hourly_schedule(winner_cad, prices_list, gas_list, scenario,
                          scheme, n_paths):
     """For the winning cadence, solve the LP on EVERY MC path and save
@@ -313,10 +443,13 @@ def save_hourly_schedule(winner_cad, prices_list, gas_list, scenario,
     # Show both the power decisions AND the compute-side numbers in the
     # console sample. (train/inf are the LP's compute decisions expressed
     # in grid-MWh; the compute-MWh figures are the same decisions ÷ PUE.)
+    # Only include columns that survived the agg (depends on whether
+    # BESS was enabled in the scenario — ch/dis_*/soc may not exist).
     show_cols = [c for c in ["g_lmp", "g_toll",
                              "train", "inf",
                              "train_compute_mwh", "inf_compute_mwh",
-                             "ch", "dis_dc", "dis_grid"] if c in decision_cols]
+                             "ch", "dis_dc", "dis_grid"]
+                 if f"{c}_mean" in avg_df.columns]
     sample = (avg_df[avg_df["site"] == A.HOUSTON]
               .sort_values("datetime")
               .head(24))
@@ -419,11 +552,41 @@ def main():
     )
     print(f"\n[Phase A complete in {(time.time()-t0)/60:.1f} min]")
 
-    # Phase B: averaged-across-paths report for the winner
+    # Phase B: averaged-across-paths report at the locked cadence with
+    # the ORIGINAL (all-on) procurement. Useful as a diagnostic that
+    # shows what the LP does when given every option, before we strip
+    # out the negative-NPV ones.
     phase_b_report(winner_cad, breakdowns_by_cad, n_paths, args.scheme)
 
-    # Hourly schedule for the winning cadence (one representative path)
-    save_hourly_schedule(winner_cad, prices_list, gas_list, scenario,
+    # Phase C: at the locked cadence, pick the procurement combination
+    # that maximizes expected profit *including* fixed costs (BESS lease).
+    # The Phase A→B chain finds the optimal cadence under "everything-on"
+    # procurement; Phase C inverts and finds the optimal procurement at
+    # the locked cadence.
+    best_scenario, best_name, best_mean = phase_c_procurement_optimization(
+        winner_cad, prices_list, gas_list, args.scheme, n_paths,
+    )
+
+    # Verification: confirm Phase A's cadence winner still wins under
+    # Phase C's optimal procurement (in case the procurement choice
+    # shifts the cadence ranking — unlikely but worth checking).
+    verified_cad, confirmed = verify_cadence_under_optimal_procurement(
+        winner_cad, best_scenario, prices_list, gas_list,
+        args.scheme, n_paths,
+    )
+
+    # Hourly schedule for the OPTIMAL (cadence, procurement) combo —
+    # not the default-all-on one. This is the actionable headline.
+    print()
+    print("=" * 78)
+    print(f"FINAL OPTIMAL POLICY")
+    print("=" * 78)
+    print(f"  Cadence:        {_label(verified_cad)}  "
+          f"({'confirmed' if confirmed else 'updated from initial '+_label(winner_cad)})")
+    print(f"  Procurement:    {best_name}")
+    print(f"  Mean profit:    ${best_mean:,.2f}M (across {n_paths} paths, "
+          f"includes all fixed costs)")
+    save_hourly_schedule(verified_cad, prices_list, gas_list, best_scenario,
                          args.scheme, n_paths)
 
 
