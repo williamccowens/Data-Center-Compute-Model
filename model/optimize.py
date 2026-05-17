@@ -33,9 +33,13 @@ Objective:
        − BESS 6-month lease (if enabled)
 """
 from __future__ import annotations
+import os
+import pickle
+from pathlib import Path
 import pandas as pd
 import numpy as np
 import pulp
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
 from typing import Optional
 
@@ -313,3 +317,134 @@ def build_and_solve(
         schedule=schedule,
         revenue_path=rev_path,
     )
+
+
+# ════════════════════════════════════════════════════════════════════════
+# COST BREAKDOWN + MULTI-PATH SOLVER
+# ════════════════════════════════════════════════════════════════════════
+# `build_and_solve` above runs the LP on ONE price path. For Monte Carlo
+# work the right object to look at is the average across price paths —
+# `solve_across_paths` solves the LP for each (prices, gas) pair in
+# parallel and returns one breakdown dict per path. `average_breakdowns`
+# rolls those into a single dict of mean metrics.
+
+def compute_breakdown(res: SolveResult, scenario: A.Scenario) -> dict:
+    """Decompose one LP solution into the revenue / cost / procurement
+    components reported to the user. All $ values in millions, MWh totals
+    are summed across the 6-month horizon."""
+    h = res.hourly
+    rev_inf      = h["revenue_inf"].sum()
+    rev_bess     = h["revenue_bess"].sum()
+    cost_lmp     = h["cost_lmp"].sum()
+    cost_toll    = h["cost_toll"].sum()
+    cost_bess_ch = h["cost_bess_ch"].sum() if "cost_bess_ch" in h.columns else 0.0
+    bess_lease   = (len(scenario.bess_sites) * A.BESS_6MO_LEASE_COST
+                    if scenario.use_bess else 0.0)
+    return {
+        "rev_inf_$M":         rev_inf / 1e6,
+        "rev_bess_grid_$M":   rev_bess / 1e6,
+        "cost_lmp_$M":        cost_lmp / 1e6,
+        "cost_toll_$M":       cost_toll / 1e6,
+        "cost_bess_ch_$M":    cost_bess_ch / 1e6,
+        "bess_lease_$M":      bess_lease / 1e6,
+        "profit_$M":          (rev_inf + rev_bess - cost_lmp - cost_toll
+                               - cost_bess_ch - bess_lease) / 1e6,
+        "g_lmp_total_mwh":    float(h["g_lmp"].sum()),
+        "g_toll_total_mwh":   float(h["g_toll"].sum()),
+        "bess_ch_total_mwh":  float(h["ch"].sum())       if "ch" in h.columns else 0.0,
+        "bess_dis_dc_mwh":    float(h["dis_dc"].sum())   if "dis_dc" in h.columns else 0.0,
+        "bess_dis_grid_mwh":  float(h["dis_grid"].sum()) if "dis_grid" in h.columns else 0.0,
+        "train_grid_mwh":     float(h["train"].sum()),
+        "inf_grid_mwh":       float(h["inf"].sum()),
+    }
+
+
+def average_breakdowns(breakdowns: list[dict]) -> dict:
+    """Mean of each metric across a list of per-path breakdowns."""
+    if not breakdowns:
+        return {}
+    keys = breakdowns[0].keys()
+    return {k: float(np.mean([b[k] for b in breakdowns])) for k in keys}
+
+
+# Module-level workers for ProcessPoolExecutor (must be importable by name)
+_WORKER_STATE = {}
+
+def _worker_init(bundle_path: str):
+    """Each worker loads the shared schedule/scenario/paths once on startup."""
+    with open(bundle_path, "rb") as f:
+        _WORKER_STATE.update(pickle.load(f))
+
+def _worker_solve(path_idx: int):
+    """Worker entry: solve one MC path's LP, return its breakdown dict."""
+    prices   = _WORKER_STATE["prices"][path_idx]
+    gas      = _WORKER_STATE["gas"][path_idx]
+    schedule = _WORKER_STATE["schedule"]
+    scenario = _WORKER_STATE["scenario"]
+    res = build_and_solve(prices, gas, scenario, schedule, solver_msg=False)
+    return path_idx, compute_breakdown(res, scenario)
+
+
+def solve_across_paths(prices_list: list,
+                       gas_list:    list,
+                       scenario:    A.Scenario,
+                       schedule:    A.TrainingSchedule,
+                       parallel:    bool = True,
+                       workers:     int | None = None,
+                       progress_label: str = "solve") -> list[dict]:
+    """Solve the LP for each (prices, gas) pair and return a list of
+    per-path breakdown dicts (one per path).
+
+    With `parallel=True` (default) uses a ProcessPool — typically ~10×
+    speedup on a multi-core machine. Each LP is independent so we
+    process one path per worker job.
+
+    Usage in a driver:
+        breakdowns = solve_across_paths(prices_list, gas_list, scen, sched)
+        avg = average_breakdowns(breakdowns)
+        print(f"Mean profit across {len(breakdowns)} paths: ${avg['profit_$M']:,.1f}M")
+    """
+    if len(prices_list) != len(gas_list):
+        raise ValueError("prices_list and gas_list must be same length")
+    n = len(prices_list)
+    if n == 0:
+        return []
+
+    if not parallel or n == 1:
+        out = []
+        for i, (p, g) in enumerate(zip(prices_list, gas_list)):
+            res = build_and_solve(p, g, scenario, schedule, solver_msg=False)
+            out.append(compute_breakdown(res, scenario))
+        return out
+
+    # Parallel path: pickle a shared bundle so workers can load once
+    workers = workers or max(1, (os.cpu_count() or 4) - 1)
+    bundle = {"prices":   {i: prices_list[i] for i in range(n)},
+              "gas":      {i: gas_list[i]    for i in range(n)},
+              "scenario": scenario,
+              "schedule": schedule}
+    tmp_dir = Path(__file__).resolve().parent / "outputs"
+    tmp_dir.mkdir(exist_ok=True, parents=True)
+    bundle_path = tmp_dir / f"_solver_bundle_{os.getpid()}_{id(schedule)}.pkl"
+    with open(bundle_path, "wb") as f:
+        pickle.dump(bundle, f)
+
+    results = [None] * n
+    try:
+        with ProcessPoolExecutor(max_workers=workers,
+                                 initializer=_worker_init,
+                                 initargs=(str(bundle_path),)) as ex:
+            futures = [ex.submit(_worker_solve, i) for i in range(n)]
+            done = 0
+            for fut in as_completed(futures):
+                i, bd = fut.result()
+                results[i] = bd
+                done += 1
+                if done % max(1, n // 10) == 0 or done == n:
+                    print(f"  [{progress_label}] {done:>3}/{n}", flush=True)
+    finally:
+        try:
+            bundle_path.unlink()
+        except OSError:
+            pass
+    return results

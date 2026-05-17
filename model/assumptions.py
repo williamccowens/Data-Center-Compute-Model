@@ -502,11 +502,12 @@ class Scenario:
     # Allow re-pricing via CLI without editing this file:
     token_input_price_per_mm:  float = TOKEN_PRICE_INPUT_PER_MM
     token_output_price_per_mm: float = TOKEN_PRICE_OUTPUT_PER_MM
-    # Optional RFP-style daily training floor *in addition to* the
-    # planning-doc per-release compute requirements. 0 = off (default;
-    # use only per-release). Set to 500.0 to layer the RFP's
-    # "≥ 500 MWh/day training" floor on top.
-    training_min_mwh_per_day:  float = 0.0
+    # Mandatory RFP daily training floor (grid-MWh per day, system-total).
+    # Default 500.0 = the RFP-specified minimum. The cadence filter
+    # (cadence_passes_500_floor) ensures all candidate cadences naturally
+    # exceed this rate, so the constraint is non-binding for valid cadences
+    # but enforces compliance for edge cases (e.g., no_training schedule).
+    training_min_mwh_per_day:  float = 500.0
 
     def inference_rev_per_grid_mwh(self) -> float:
         blended = (
