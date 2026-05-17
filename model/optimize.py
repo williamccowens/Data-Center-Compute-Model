@@ -200,14 +200,19 @@ def build_and_solve(
             m += pulp.lpSum(train[h][s] for h in idx for s in sites) \
                  >= scenario.training_min_mwh_per_day, f"train_min_{day}"
 
-    # Outside any training window, no training is allowed
-    in_any_window = set()
-    for _, win in schedule_hours_by_run:
-        in_any_window.update(win)
-    for h in hours:
-        if h not in in_any_window:
-            for s in sites:
-                m += train[h][s] == 0, f"no_train_{h}_{s}"
+    # Outside any release's training window, no training is allowed —
+    # BUT only if the schedule actually defines windows. With an empty
+    # schedule (no releases), training is still allowed everywhere so the
+    # RFP daily floor can be satisfied; otherwise no_training+floor would
+    # be infeasible.
+    if schedule.runs:
+        in_any_window = set()
+        for _, win in schedule_hours_by_run:
+            in_any_window.update(win)
+        for h in hours:
+            if h not in in_any_window:
+                for s in sites:
+                    m += train[h][s] == 0, f"no_train_{h}_{s}"
 
     if use_bess:
         for s in bess_sites:
