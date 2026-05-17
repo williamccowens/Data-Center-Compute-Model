@@ -1,18 +1,60 @@
 # Financing the Grid — Data-Center Compute Model
 
-Linear program that maximizes profit across two ERCOT data centers
-(Houston + West) over **6/1/2026 → 12/1/2026**, faithful to the
-constraints in the RFP (`FinalVersion_Financing the Grid_Project_2026-1.pdf`)
-and the planning doc (`Final Project Planning .docx`).
+A Monte-Carlo-driven linear program that picks the optimal training and
+power-procurement policy for two ERCOT data centers (Houston + West) over
+**6/1/2026 → 12/1/2026**, faithful to the constraints in the RFP
+(`FinalVersion_Financing the Grid_Project_2026-1.pdf`) and the planning
+doc (`Final Project Planning .docx`).
 
-The LP decides hourly per site:
-- how much grid power to draw (LMP vs Houston tolling),
-- how to split compute between training and inference,
-- when to charge / discharge a 40 MW / 160 MWh BESS (to the data center or sold back to the grid).
+## What the model decides
 
-The training schedule itself is a *decision variable* — we sweep across
-candidate cadences (every 30 / 45 / 60 / 90 / 180 days) and pick the
-profit-maximizing one.
+**Outer loop (training cadence)** — How often to retrain a new frontier
+model. The cadence drives both compute spent on training and the
+revenue trajectory (newer models earn more per token; staleness penalty
+between releases). We sweep a filtered set of candidate cadences and
+pick the one with highest *expected profit across Monte-Carlo-simulated
+price paths*.
+
+**Inner LP (hourly operations, ~70K decision variables)** — For each
+hour h and each site s ∈ {Houston, West}:
+
+| Decision | Description |
+|---|---|
+| `g_lmp[h,s]`, `g_toll[h,s]` | Grid power procurement: LMP vs Houston tolling (toll only at Houston; period-long commitment + hourly option) |
+| `train[h,s]`, `inf[h,s]` | Compute split: training vs inference (in grid-MWh; LP also outputs compute-MWh and FLOPS / tokens) |
+| `ch[h,s]`, `dis_dc[h,s]`, `dis_grid[h,s]`, `soc[h,s]` | BESS dispatch: charge from grid, discharge to DC, sell to grid, state of charge |
+
+BESS placement is also a **decision** — `Scenario.bess_sites` lets you
+enable BESS at Houston only, West only, both, or neither. Tolling is
+Houston-only by RFP. Both choices are evaluated in `bess_sweep.py`.
+
+## How the headline run works
+
+```
+Phase A — pick a cadence under price uncertainty
+    For each candidate cadence c (filtered to those that pass the
+    mandatory 500 MWh/day RFP training floor and the 4,800 MWh/day grid
+    capacity check):
+      For each of N MC-simulated price paths p:
+        Solve the LP(prices_p, gas_p, scenario, cadence_c)
+      Mean profit across paths → score for cadence c
+    Stage 1 sweeps 6–12 broad cadences.
+    Stage 2 refines 6 cadences ±30 % around the Stage-1 winner.
+    Winner = highest mean profit ⇒ expected-value-optimal cadence under
+    price uncertainty.
+
+Phase B — locked-cadence reporting
+    For the winning cadence, re-solve across every MC path and report:
+      • averaged-across-paths cost breakdown (LMP, toll, BESS arb, profit)
+      • profit distribution (mean / std / p05 / p50 / p95)
+      • LP's hourly procurement choices: averaged with ±std for every
+        decision variable, plus full per-path hourly schedules saved to CSV
+```
+
+Default `python model\run_planning_doc.py` runs the above with N=50 MC
+paths under the `doc_blended` token-multiplier scheme (quality uplift ×
+60-day market decay), the mandatory RFP 500 MWh/day training floor, and
+BESS+toll enabled at both sites. ~25 min on a 12-core box.
 
 ---
 

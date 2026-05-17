@@ -1,13 +1,18 @@
 """
-2×2 procurement-option ablation: BESS × Tolling, evaluated across N MC
-price paths so the marginal value of each option reflects price-path
-uncertainty rather than a single realization.
+2-toll × 4-BESS-placement procurement ablation (= 8 scenarios), evaluated
+across N MC price paths so the marginal value of each option reflects
+price-path uncertainty rather than a single realization.
+
+BESS placement is now asymmetric — the Houston site has tolling
+competing for arbitrage opportunities, while West has no tolling option,
+so a battery at West has a richer arb landscape than one at Houston.
+The sweep tests every combination:
+    BESS:  (none, Houston-only, West-only, both)  ×  Toll:  (off, on)
 
 Holds cadence fixed (default monthly = 30d, the headline winner) and the
-token-pricing scheme fixed (default doc_blended). Sweeps the four
-combinations of `use_houston_tolling` and `use_bess`, calling
-`optimize.solve_across_paths` for each so every scenario gets N LP solves
-in parallel.
+token-pricing scheme fixed (default doc_blended). For each scenario,
+`optimize.solve_across_paths` solves the LP across all N MC paths in
+parallel.
 
 Output:
   - mean / std / p05 / p95 profit per scenario across paths
@@ -65,12 +70,30 @@ def main():
     schedule = A.equal_cadence_schedule(args.cadence,
                                         token_multiplier_scheme=args.scheme)
 
-    # Four (use_toll, use_bess) combinations
+    # 2 tolling states × 4 BESS placement options = 8 scenarios.
+    # BESS placement is asymmetric: Houston (where toll competes for arb)
+    # vs West (no toll → BESS is the only LMP-spike hedging tool).
+    def _scen(toll, bess_sites_label):
+        kwargs = {"use_houston_tolling": toll}
+        if bess_sites_label is None:
+            kwargs["use_bess"] = False
+        else:
+            kwargs["use_bess"]   = True
+            kwargs["bess_sites"] = bess_sites_label
+        return A.Scenario(**kwargs)
+
     scenarios = [
-        ("LMP only",            A.Scenario(use_houston_tolling=False, use_bess=False)),
-        ("LMP + Houston toll",  A.Scenario(use_houston_tolling=True,  use_bess=False)),
-        ("LMP + BESS (both)",   A.Scenario(use_houston_tolling=False, use_bess=True)),
-        ("LMP + toll + BESS",   A.Scenario(use_houston_tolling=True,  use_bess=True)),
+        # No BESS — baseline + toll-only
+        ("LMP only",                       _scen(False, None)),
+        ("LMP + toll",                     _scen(True,  None)),
+        # BESS-only variants (no toll)
+        ("LMP + BESS Houston",             _scen(False, ("HOUSTON",))),
+        ("LMP + BESS West",                _scen(False, ("WEST",))),
+        ("LMP + BESS both",                _scen(False, ("HOUSTON", "WEST"))),
+        # BESS combined with tolling (asymmetric placement)
+        ("LMP + toll + BESS Houston",      _scen(True,  ("HOUSTON",))),
+        ("LMP + toll + BESS West",         _scen(True,  ("WEST",))),
+        ("LMP + toll + BESS both",         _scen(True,  ("HOUSTON", "WEST"))),
     ]
 
     # ── For each scenario, solve the LP across all paths ────────────────
