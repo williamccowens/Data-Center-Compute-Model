@@ -60,6 +60,31 @@ def _load_henry_hub(path: Path | None = None) -> pd.DataFrame:
     return df.dropna().sort_values("date").reset_index(drop=True)
 
 
+def load_historical_panel() -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Full 2025 ERCOT + Henry Hub data, NOT shifted. Use this to calibrate
+    the OU / Monte Carlo model.
+
+    Returns
+    -------
+    hourly : DataFrame with columns [datetime, hb_houston, hb_west]
+    daily  : DataFrame with columns [date, gas_hh]
+    """
+    raw = _load_ercot_dam_hourly()
+    hourly = (raw
+              .pivot(index="datetime", columns="hub", values="price")
+              .rename(columns={"HB_HOUSTON": "hb_houston",
+                               "HB_WEST":    "hb_west"})
+              .reset_index()
+              .dropna(subset=["hb_houston", "hb_west"]))
+    gas = _load_henry_hub().rename(columns={"price": "gas_hh"})
+    # Use only full-year 2025 for stable seasonal estimates
+    hourly = hourly[(hourly["datetime"] >= "2025-01-01")
+                    & (hourly["datetime"] <  "2026-01-01")].reset_index(drop=True)
+    gas    = gas[(gas["date"] >= "2025-01-01")
+                 & (gas["date"] <  "2026-01-01")].reset_index(drop=True)
+    return hourly, gas
+
+
 def load_price_panel() -> tuple[pd.DataFrame, pd.DataFrame]:
     """Hourly ERCOT prices for the 6/1/2026–12/1/2026 horizon (using 2025
     Jun-Nov data shifted one year forward as a deterministic proxy) and the

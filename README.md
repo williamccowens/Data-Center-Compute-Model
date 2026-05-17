@@ -37,6 +37,9 @@ model/
   confirm_chain.py           ← prints date → params → FLOPS → cMWh for R1–R5
   confirm_schedule.py        ← prints R(k+1).start = R(k).release chain
   fit_growth_curves.py       ← refits params(date) and FLOPS(params)
+  calibration.py             ← seasonal Ornstein-Uhlenbeck calibration (ported from FTG)
+  monte_carlo.py             ← N-path joint price simulator
+  run_monte_carlo.py         ← MC driver: calibrate → simulate → solve LP × N → distribution
   README.md                  ← model-level documentation + constraint cross-reference
 Final Project Planning .docx ← source brief from project team
 ```
@@ -71,6 +74,29 @@ uplift × market decay). Last run produced:
 | every_90d | 3 | 163,699 | 712,062 | 0.27× | 83,066 |
 | every_180d | 2 | 91,296 | 784,464 | 0.18× | 78,958 |
 | no_training | 0 | 0 | 878,400 | 0.12× | 61,211 |
+
+### Monte Carlo (real-options framing)
+
+```powershell
+# 50-path MC: calibrates OU on 2025 actuals, simulates 6-month forward
+# paths for HB_HOUSTON / HB_WEST / Henry Hub jointly, runs the LP on each
+python model\run_monte_carlo.py -n 50            # default: 60d cadence, toll on, no BESS
+python model\run_monte_carlo.py -n 100 --bess    # with BESS at both sites
+python model\run_monte_carlo.py -n 200 --scheme doc_blended --cadence 30
+```
+
+Reports mean, std, percentiles of profit across simulated paths.
+At frontier GPT-5.4Pro token prices, profit is essentially **invariant
+to price-path realization** (CoV ≈ 1e-5) — inference revenue
+($167K/grid-MWh) is so large that LMP variability is a rounding error.
+BESS arbitrage remains net-negative by ~$3M vs $6M lease.
+
+The 3-series OU calibration (ported from `ltemry/FTG-Final-Project`)
+captures:
+- HB_HOUSTON hourly log-OU (κ=0.072/hr, half-life ≈ 9.6 h)
+- HB_WEST hourly log-OU (κ=0.044/hr, half-life ≈ 15.8 h)
+- Henry Hub daily log-OU (κ=0.018/day, half-life ≈ 38 d)
+- Innovation correlation (Houston-West = 0.75, power-gas ≈ −0.15)
 
 ### Other analyses
 
