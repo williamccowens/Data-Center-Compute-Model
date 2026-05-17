@@ -212,53 +212,128 @@ def phase_b_report(winner_cad: int,
 
 def save_hourly_schedule(winner_cad, prices_list, gas_list, scenario,
                          scheme, n_paths):
-    """Save the full hourly decision-variable schedule for the winning
-    cadence on a representative price path (path 0). Lets the user see
-    every g_lmp / g_toll / train / inf / BESS choice the LP makes."""
+    """For the winning cadence, solve the LP on EVERY MC path and save
+    both:
+      - hourly_winner_all_paths_*.csv  long format with a path column
+      - hourly_winner_avg_*.csv        averaged-across-paths schedule with
+                                        ±std for each decision variable
+
+    Print a 24-hour averaged sample at HOUSTON so the user can SEE the
+    typical LP behaviour with its path-to-path variability."""
     print()
     print("=" * 78)
-    print(f"HOURLY SCHEDULE — winning cadence {_label(winner_cad)} on path 0")
+    print(f"HOURLY SCHEDULE — winning cadence {_label(winner_cad)} "
+          f"(across {n_paths} MC paths)")
     print("=" * 78)
 
     if winner_cad > 0:
         sch = A.equal_cadence_schedule(winner_cad, token_multiplier_scheme=scheme)
     else:
         sch = A.no_training_schedule()
-    res = build_and_solve(prices_list[0], gas_list[0], scenario, sch,
-                          solver_msg=False)
-    h = res.hourly.copy()
 
-    # Save canonical decision variables to CSV
-    keep_cols = ["datetime", "site", "lmp", "rev_inf",
-                 "g_lmp", "g_toll", "train", "inf",
-                 "ch", "dis_dc", "dis_grid", "soc",
-                 "revenue_inf", "revenue_bess", "cost_lmp", "cost_toll",
-                 "cost_bess_ch", "profit"]
-    keep_cols = [c for c in keep_cols if c in h.columns]
-    out_path = OUT_DIR / f"hourly_winner_n{n_paths}_{scheme}.csv"
-    h[keep_cols].to_csv(out_path, index=False)
-    print(f"  Full hourly schedule saved → {out_path.name}")
-    print(f"  ({len(h):,} rows = {len(h)//2:,} hours × 2 sites, "
-          f"{len(keep_cols)} columns)")
+    decision_cols = ["g_lmp", "g_toll", "train", "inf",
+                     "ch", "dis_dc", "dis_grid", "soc"]
+    cost_cols     = ["revenue_inf", "revenue_bess", "cost_lmp", "cost_toll",
+                     "cost_bess_ch", "profit"]
 
-    # Print a 24-hour sample so the user can SEE the structure
+    # Solve the winning cadence on every path (in parallel)
+    print(f"  Re-solving {n_paths} paths to recover per-path hourly schedules ...")
+    n_workers = max(1, (os.cpu_count() or 4) - 1)
+    all_dfs = []
+    if n_paths == 1:
+        res = build_and_solve(prices_list[0], gas_list[0], scenario, sch,
+                              solver_msg=False)
+        h = res.hourly.copy()
+        h["path"] = 0
+        all_dfs.append(h)
+    else:
+        # Parallel re-solve. We piggy-back on optimize.solve_across_paths'
+        # ProcessPool by inlining the LP solve here (it returns breakdowns,
+        # not hourly DataFrames). Use a one-off ProcessPool ourselves.
+        from concurrent.futures import ProcessPoolExecutor, as_completed
+        import pickle as _pkl
+        bundle = {"prices":   {i: prices_list[i] for i in range(n_paths)},
+                  "gas":      {i: gas_list[i]    for i in range(n_paths)},
+                  "scenario": scenario,
+                  "schedule": sch}
+        bundle_path = OUT_DIR / f"_hourly_bundle_{os.getpid()}.pkl"
+        with open(bundle_path, "wb") as f:
+            _pkl.dump(bundle, f)
+        try:
+            with ProcessPoolExecutor(
+                max_workers=n_workers,
+                initializer=_init_hourly_worker,
+                initargs=(str(bundle_path),),
+            ) as ex:
+                futs = [ex.submit(_solve_hourly, i) for i in range(n_paths)]
+                for fut in as_completed(futs):
+                    i, hdf = fut.result()
+                    hdf["path"] = i
+                    all_dfs.append(hdf)
+        finally:
+            try:
+                bundle_path.unlink()
+            except OSError:
+                pass
+
+    combined = pd.concat(all_dfs, ignore_index=True)
+    keep_cols = ["path", "datetime", "site", "lmp", "rev_inf",
+                 *decision_cols, *cost_cols]
+    keep_cols = [c for c in keep_cols if c in combined.columns]
+    out_all = OUT_DIR / f"hourly_winner_all_paths_n{n_paths}_{scheme}.csv"
+    combined[keep_cols].to_csv(out_all, index=False)
+    print(f"  All per-path schedules saved   → {out_all.name}  "
+          f"({len(combined):,} rows)")
+
+    # Aggregate across paths at each (datetime, site)
+    agg_cols = [c for c in decision_cols + cost_cols + ["lmp", "rev_inf"]
+                if c in combined.columns]
+    agg_funcs = {c: ["mean", "std"] for c in agg_cols}
+    avg_df = combined.groupby(["datetime", "site"]).agg(agg_funcs)
+    avg_df.columns = [f"{c}_{stat}" for c, stat in avg_df.columns]
+    avg_df = avg_df.reset_index()
+    out_avg = OUT_DIR / f"hourly_winner_avg_n{n_paths}_{scheme}.csv"
+    avg_df.to_csv(out_avg, index=False)
+    print(f"  Averaged-across-paths schedule → {out_avg.name}  "
+          f"({len(avg_df):,} rows)")
+
+    # Print 24-hour averaged sample at Houston, with ±std
     print()
-    print(f"  Sample (first 24 hours at HOUSTON):")
-    sample = (h[h["site"] == A.HOUSTON]
+    print(f"  Sample (first 24 hours at HOUSTON, mean ± std across {n_paths} paths):")
+    show_cols = [c for c in ["g_lmp", "g_toll", "train", "inf",
+                             "ch", "dis_dc", "dis_grid"] if c in decision_cols]
+    sample = (avg_df[avg_df["site"] == A.HOUSTON]
               .sort_values("datetime")
-              .head(24)
-              [["datetime", "lmp", "g_lmp", "g_toll",
-                "train", "inf", "ch", "dis_dc", "dis_grid"]]
-              if "ch" in h.columns else
-              h[h["site"] == A.HOUSTON]
-              .sort_values("datetime")
-              .head(24)
-              [["datetime", "lmp", "g_lmp", "g_toll", "train", "inf"]])
-    for col in sample.columns:
-        if col not in ("datetime", "site"):
-            sample[col] = sample[col].astype(float).round(2)
-    sample["datetime"] = sample["datetime"].astype(str)
-    print(sample.to_string(index=False))
+              .head(24))
+    rows = []
+    for _, r in sample.iterrows():
+        row = {"datetime": str(r["datetime"]),
+               "lmp": f"{r['lmp_mean']:.2f}"}
+        for c in show_cols:
+            mean_v = r[f"{c}_mean"]
+            std_v  = r[f"{c}_std"]
+            row[c] = (f"{mean_v:6.1f}±{std_v:4.1f}"
+                      if std_v > 0.05 else f"{mean_v:6.1f}      ")
+        rows.append(row)
+    sample_df = pd.DataFrame(rows)
+    print(sample_df.to_string(index=False))
+
+
+# ProcessPool helpers for save_hourly_schedule (module-level for pickle)
+_HOURLY_STATE = {}
+def _init_hourly_worker(bundle_path: str):
+    import pickle as _pkl
+    with open(bundle_path, "rb") as f:
+        _HOURLY_STATE.update(_pkl.load(f))
+
+def _solve_hourly(path_idx: int):
+    prices = _HOURLY_STATE["prices"][path_idx]
+    gas    = _HOURLY_STATE["gas"][path_idx]
+    res    = build_and_solve(prices, gas,
+                              _HOURLY_STATE["scenario"],
+                              _HOURLY_STATE["schedule"],
+                              solver_msg=False)
+    return path_idx, res.hourly.copy()
 
 
 # ──────────────────────────────────────────────────────────────────────
