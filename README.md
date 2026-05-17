@@ -101,6 +101,7 @@ consume the same primitives.
 | `model/data.py` | `load_price_panel()` (2026 proxy from shifted 2025, for fast deterministic checks) and `load_historical_panel()` (un-shifted 2025 actuals for calibration). DST/repeated-hour handling. |
 | `model/calibration.py` | Seasonal log-OU fit on 3 series (HB_HOUSTON / HB_WEST / Henry Hub) with empirical innovation correlation. Ported from `ltemry/FTG-Final-Project`. |
 | `model/monte_carlo.py` | `simulate_paths()` joint-OU price-path generator. `calibrate_and_simulate()` one-stop helper. `path_to_lp_inputs()` adapter that converts one path → (prices, gas_daily) DataFrames for the LP. |
+| `model/stress.py` | Optional Uri-style stress overlay (ported from FTG `phase4_intermittency_stress.py`). `inject_winter_storm(sim, scenario_name)` returns a copy of an MC sim with spike windows injected on a fraction of paths. Four named scenarios: `none` / `mild` / `moderate` / `uri_full`. Off by default. |
 
 ### Phase 1 — Pre-flight (run once, when source data changes)
 
@@ -218,6 +219,12 @@ python model\run_planning_doc.py --mc 0     # single-path deterministic (debug, 
 # Procurement / scheme overrides:
 python model\run_planning_doc.py --no-bess --scheme constant
 python model\run_planning_doc.py --include-no-training   # add baseline to candidate set
+
+# Stress overlay (Uri-style winter-storm spikes injected into the MC paths
+# before optimization). Default --stress none, so baseline is unchanged.
+python model\run_planning_doc.py --mc 50 --stress mild       # 72h, $200-400/MWh, p=0.50
+python model\run_planning_doc.py --mc 50 --stress moderate   # 96h, $500-1500/MWh + $20 gas, p=0.20
+python model\run_planning_doc.py --mc 50 --stress uri_full   # 100h, $5K-9K/MWh + $250 gas, p=0.05
 ```
 
 **The headline driver runs in four sequential phases (~30 min at N=50):**

@@ -434,19 +434,19 @@ const content = [
     " — currently default 50 for production runs. 200+ would tighten confidence intervals on procurement decisions where the gap is small (Phase-C gaps are ~$5 M while paths-stdev is ~$30 M).",
   ),
 
-  H2("Constraints from the RFP partially covered, not yet ported into the LP"),
-  P("The FTG repo (ltemry/FTG-Final-Project) contains `src/phase4_intermittency_stress.py`, which addresses intermittency and tail-risk events indirectly — by reading them out of LMP signatures rather than modelling wind/solar generation directly. We have vendored the OU calibration and MC simulator from that repo, but have not yet ported phase 4. Open items:"),
+  H2("Constraints from the RFP — partially covered"),
+  P("The FTG repo (ltemry/FTG-Final-Project) contains `src/phase4_intermittency_stress.py`, which addresses intermittency and tail-risk events indirectly — by reading them out of LMP signatures rather than modelling wind/solar generation directly. We have vendored the OU calibration, MC simulator, AND (as of this revision) the stress-overlay logic from that repo. What's covered vs what's still open:"),
   BULLET_R(
-    { text: "Wind-solar intermittency / MIHR (qualitative)", bold: true },
-    " — phase 4 in the FTG repo computes diurnal LMP percentile profiles, the evening-ramp premium (hour-18 − hour-14, capturing solar dropoff), and negative-LMP frequency at HB_WEST (wind-oversupply proxy). These are LMP-implied signatures of renewable variability, which is consistent with the RFP's request for a substantive discussion citing ERCOT data. Action item: include these diagnostics in the report and decide whether to also overlay them as constraints in the LP.",
+    { text: "Unscheduled-outage / Uri-style stress (ported, optional toggle)", bold: true },
+    " — `model/stress.py` exposes four scenarios from FTG phase 4: none (default), mild (72 h, $200–400/MWh, p = 0.50), moderate (96 h, $500–1500/MWh + $20/MMBtu gas, p = 0.20), uri_full (100 h, $5000–9000/MWh + $250/MMBtu gas, p = 0.05). When `run_planning_doc.py --stress <name>` is set, the chosen overlay is applied to a fraction of the MC paths AFTER the OU simulation and BEFORE the LP solve, on both ERCOT hubs simultaneously (system-wide scarcity event). Default is `none`, so headline results are unchanged. Use it as a sensitivity / stress test — expectation is that the toll option's value rises materially under moderate/uri_full.",
   ),
   BULLET_R(
-    { text: "Capacity-factor derate (true MIHR-style)", bold: true },
+    { text: "Wind-solar intermittency / MIHR (qualitative — still to report)", bold: true },
+    " — phase 4 in the FTG repo computes diurnal LMP percentile profiles, the evening-ramp premium (hour-18 − hour-14, capturing solar dropoff), and negative-LMP frequency at HB_WEST (wind-oversupply proxy). These are LMP-implied signatures of renewable variability, which is consistent with the RFP's request for a substantive discussion citing ERCOT data. Action item: include these diagnostics in the report; the analysis logic exists, it just isn't a separate module in our codebase yet.",
+  ),
+  BULLET_R(
+    { text: "Capacity-factor derate (true MIHR-style — still open)", bold: true },
     " — distinct from the LMP-signature view above. Our LP currently assumes capacity_factor = 1.0 (full 100 MW/site at every hour). A direct MIHR model would multiply the per-site grid cap by a stochastic capacity_factor[h] ≤ 1 driven by renewables + transmission. Not implemented; phase 4 doesn't do this either (it works on prices, not capacity).",
-  ),
-  BULLET_R(
-    { text: "Unscheduled-outage / Uri-style stress", bold: true },
-    " — phase 4 overlays three winter-storm analogs on the MC paths (mild 72h cold snap, moderate Uri at $500–1500/MWh + $20/MMBtu gas, full Uri replay at the $9000/MWh cap + $250/MMBtu gas) and values the toll option as tail insurance. The scenarios exist; they are not currently injected into our MC paths. Action item: port the spike-injection logic into `monte_carlo.simulate_paths` (or a wrapper), then re-run Phase C — we expect the toll option's value to rise materially.",
   ),
 
   // ── REPORT skeleton (left blank; user will fill in) ──────────────
