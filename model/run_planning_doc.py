@@ -231,8 +231,18 @@ def save_hourly_schedule(winner_cad, prices_list, gas_list, scenario,
     else:
         sch = A.no_training_schedule()
 
-    decision_cols = ["g_lmp", "g_toll", "train", "inf",
-                     "ch", "dis_dc", "dis_grid", "soc"]
+    # All LP decision variables. Power-side: g_lmp, g_toll (procurement)
+    # and ch / dis_dc / dis_grid (BESS dispatch). Compute-side: train / inf
+    # are the LP variables in grid-MWh; train_compute_mwh / inf_compute_mwh
+    # are the compute-MWh equivalents (÷ PUE); train_flops and inf_tokens
+    # are the same decision in FLOPS / token units.
+    decision_cols = [
+        "g_lmp", "g_toll",                                # power procurement
+        "train", "inf",                                   # compute split (grid-MWh)
+        "train_compute_mwh", "inf_compute_mwh",           # compute-MWh
+        "train_flops", "inf_tokens",                      # FLOPS / tokens
+        "ch", "dis_dc", "dis_grid", "soc",                # BESS dispatch
+    ]
     cost_cols     = ["revenue_inf", "revenue_bess", "cost_lmp", "cost_toll",
                      "cost_bess_ch", "profit"]
 
@@ -300,7 +310,12 @@ def save_hourly_schedule(winner_cad, prices_list, gas_list, scenario,
     # Print 24-hour averaged sample at Houston, with ±std
     print()
     print(f"  Sample (first 24 hours at HOUSTON, mean ± std across {n_paths} paths):")
-    show_cols = [c for c in ["g_lmp", "g_toll", "train", "inf",
+    # Show both the power decisions AND the compute-side numbers in the
+    # console sample. (train/inf are the LP's compute decisions expressed
+    # in grid-MWh; the compute-MWh figures are the same decisions ÷ PUE.)
+    show_cols = [c for c in ["g_lmp", "g_toll",
+                             "train", "inf",
+                             "train_compute_mwh", "inf_compute_mwh",
                              "ch", "dis_dc", "dis_grid"] if c in decision_cols]
     sample = (avg_df[avg_df["site"] == A.HOUSTON]
               .sort_values("datetime")

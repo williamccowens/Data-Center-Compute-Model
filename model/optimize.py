@@ -285,6 +285,15 @@ def build_and_solve(
             rows.append(r)
     hourly = pd.DataFrame(rows)
     hourly["date"] = hourly["datetime"].dt.normalize()
+
+    # train / inf are LP decisions in GRID-MWh. Derive the compute-side
+    # numbers (compute-MWh, FLOPS, tokens) so the compute decisions are
+    # explicit alongside the power decisions in the output.
+    hourly["train_compute_mwh"] = hourly["train"] / A.PUE
+    hourly["inf_compute_mwh"]   = hourly["inf"]   / A.PUE
+    hourly["train_flops"]       = hourly["train_compute_mwh"] * A.FLOPS_PER_COMPUTE_MWH
+    hourly["inf_tokens"]        = hourly["inf_compute_mwh"]   * A.TOKENS_PER_COMPUTE_MWH
+
     hourly["revenue_inf"]   = hourly["rev_inf"]  * hourly["inf"]
     hourly["cost_lmp"]      = hourly["lmp"]      * hourly["g_lmp"]
     hourly["cost_toll"]     = hourly["toll_cost"].fillna(0) * hourly["g_toll"]
