@@ -22,15 +22,14 @@ The model is organized into four phases. Phase 1 produces inputs; Phase 2
 is the headline run; Phases 3-4 are diagnostics and side analyses that
 consume the same primitives.
 
-### Phase 0 — Core modules (imported, not run directly)
+### Phase 0 — Config / data modules (imported, not run directly)
 
 | File | Purpose |
 |---|---|
-| `model/assumptions.py` | Every numeric input + Scenario flags + TrainingSchedule generators + date→params→FLOPS→cMWh projection chain |
-| `model/data.py` | `load_price_panel()` (2026 proxy from shifted 2025) and `load_historical_panel()` (un-shifted 2025 for calibration). DST/repeated-hour handling. |
+| `model/assumptions.py` | Every numeric input + Scenario flags + TrainingSchedule generators + date→params→FLOPS→cMWh projection chain + cadence filter (500 MWh/day floor + grid capacity) |
+| `model/data.py` | `load_price_panel()` (2026 proxy from shifted 2025, for fast deterministic checks) and `load_historical_panel()` (un-shifted 2025 actuals for calibration). DST/repeated-hour handling. |
 | `model/calibration.py` | Seasonal log-OU fit on 3 series (HB_HOUSTON / HB_WEST / Henry Hub) with empirical innovation correlation. Ported from `ltemry/FTG-Final-Project`. |
-| `model/monte_carlo.py` | `simulate_paths()` joint-OU price-path generator. `calibrate_and_simulate()` one-stop helper. `path_to_lp_inputs()` adapter to LP format. |
-| `model/optimize.py` | `build_and_solve()` — the LP (PuLP / CBC). |
+| `model/monte_carlo.py` | `simulate_paths()` joint-OU price-path generator. `calibrate_and_simulate()` one-stop helper. `path_to_lp_inputs()` adapter that converts one path → (prices, gas_daily) DataFrames for the LP. |
 
 ### Phase 1 — Pre-flight (run once, when source data changes)
 
@@ -38,13 +37,55 @@ consume the same primitives.
 |---|---|
 | `python model\fit_growth_curves.py` | Refits the param-vs-date and FLOPS-vs-params regressions on the Epoch AI CSVs. Coefficients are pasted into `assumptions.py` (PARAM_FIT_*, FLOPS_FIT_*). Re-run only if the source CSVs in `data/` change. |
 
-### Phase 2 — Headline optimization (the main run)
+### Phase 2 — The optimization itself
 
-| Command | What it does |
+| File | Role |
 |---|---|
-| `python model\run_planning_doc.py` | **Deterministic** — 2025-shifted price proxy, sweeps all candidate cadences, picks the winner. ~30 sec. |
-| `python model\run_planning_doc.py --mc 30` | **Monte Carlo × cadence cartesian** — for each of N simulated price paths, sweeps every cadence and picks the per-path optimum. Reports win frequency + best-per-path profit distribution. Parallelized. ~10 min for N=30. |
-| `python model\run_monte_carlo.py -n 50` | MC distribution at a **single fixed cadence** (default 60d). Faster than full cartesian when you don't need the cadence comparison. |
+| `model/optimize.py` | **The LP.** `build_and_solve(prices, gas, scenario, schedule)` constructs and solves the linear program. This is what the drivers call N times (one per MC price path) with the same scenario/schedule. |
+| `python model\run_planning_doc.py` | **Headline driver.** Default mode runs Monte Carlo with N=10 price paths × cadence cartesian, picks the cadence with highest *mean profit across paths* (committing under uncertainty, not on a single deterministic realization). Stage 2 refinement around the winner. |
+| `python model\run_planning_doc.py --mc 30` | Same but with more paths for tighter percentiles. ~10 min for N=30. |
+| `python model\run_planning_doc.py --mc 0` | Opt out of MC, run on the single deterministic 2025-shifted proxy. Faster (~3 min) but answer is for *one* price realization only. Use for debugging / quick checks. |
+| `python model\run_monte_carlo.py -n 50` | Same MC framework but with a single fixed cadence (default 60d). Faster than the full cartesian sweep when you don't need cadence comparison. |
+
+### Decision variables and constraints (in `optimize.py`)
+
+Per hour `h` and site `s ∈ {HOUSTON, WEST}`, the LP picks:
+
+| Variable | Meaning | Bounds |
+|---|---|---|
+| `g_lmp[h, s]` | Grid power drawn at RT LMP | 0 – 100 grid-MWh/hr |
+| `g_toll[h, s]` | Grid power drawn under Houston tolling | 0 – 100 grid-MWh/hr (0 at WEST) |
+| `train[h, s]` | Compute used for training | ≥ 0 |
+| `inf[h, s]` | Compute used for inference | ≥ 0 |
+| `ch[h, s]` | BESS charge from grid | 0 – 40 (if BESS enabled) |
+| `dis_dc[h, s]` | BESS discharge to data center | ≥ 0 |
+| `dis_grid[h, s]` | BESS discharge sold back at LMP | ≥ 0 |
+| `soc[h, s]` | BESS state of charge | 0 – 160 MWh |
+
+Subject to (every constraint audited by `verify_constraints.py`, 19/19 PASS):
+
+- Per-site grid cap: `g_lmp + g_toll ≤ 100`
+- Per-site compute cap: `train + inf ≤ 100` grid-MWh (= 80 compute-MWh, PUE 1.25)
+- Power balance: `g_lmp + g_toll + dis_dc = train + inf`
+- Tolling at Houston only: `g_toll[h, WEST] = 0`
+- Per-release training floor: `Σ train over R_k window ≥ C_k × PUE`
+- R1 (initial release): `inf[h, s] = 0` during R1 window (100% compute → training)
+- BESS dynamics: `soc[h+1] = soc[h] + √η·ch − (dis_dc + dis_grid)/√η`
+- RFP daily floor (optional, default 500): `Σ train per day ≥ training_min_mwh_per_day`
+
+Objective:
+
+```
+max  Σ rev_inf[h] · inf[h, s]                  ← inference revenue
+   + Σ LMP[h, s] · dis_grid[h, s]              ← BESS sell-to-grid
+   − Σ LMP[h, s] · g_lmp[h, s]                 ← LMP cost
+   − Σ toll[h]   · g_toll[h, s]                ← tolling cost (Houston)
+   − Σ LMP[h, s] · ch[h, s]                    ← BESS charge cost
+   − BESS lease  (fixed, if enabled)
+```
+
+The LP picks `g_lmp` vs `g_toll`, BESS `ch / dis_dc / dis_grid`, and the
+hourly `train / inf` split — there is no separate "decider" module.
 
 ### Phase 3 — Verification (confirms the LP is doing what we think)
 

@@ -9,15 +9,14 @@ price data from `ltemry/FTG-Final-Project`.
 
 The top-level [README.md](../README.md) has the full phase ordering. Briefly:
 
-**Phase 0 — Core (imported, not run directly):**
+**Phase 0 — Config / data modules (imported only):**
 
 | File | Purpose |
 |---|---|
-| `assumptions.py` | Every numeric input + Scenario flags + schedule generators + date→params→FLOPS→cMWh projection chain |
-| `data.py` | Price-panel loaders (proxy + historical), DST-corrected |
+| `assumptions.py` | Every numeric input + Scenario flags + schedule generators + date→params→FLOPS→cMWh projection chain + cadence filter |
+| `data.py` | Price-panel loaders (`load_price_panel` proxy + `load_historical_panel` for OU calibration), DST-corrected |
 | `calibration.py` | Seasonal log-OU fit (ported from `ltemry/FTG-Final-Project`) |
-| `monte_carlo.py` | Path simulator + `calibrate_and_simulate()` one-stop helper |
-| `optimize.py` | The LP — `build_and_solve()` with PuLP/CBC |
+| `monte_carlo.py` | `simulate_paths` path generator + `calibrate_and_simulate` one-stop helper + `path_to_lp_inputs` LP adapter |
 
 **Phase 1 — Pre-flight:**
 
@@ -25,12 +24,13 @@ The top-level [README.md](../README.md) has the full phase ordering. Briefly:
 |---|---|
 | `fit_growth_curves.py` | Refits param/FLOPS regressions from Epoch AI CSVs |
 
-**Phase 2 — Headline optimization:**
+**Phase 2 — The optimization itself:**
 
 | File | Purpose |
 |---|---|
-| `run_planning_doc.py` | Cadence sweep. `--mc N` for Monte Carlo × cadence cartesian (parallelized) |
-| `run_monte_carlo.py` | Single-cadence MC at higher N (faster when cadence comparison not needed) |
+| `optimize.py` | **The LP.** `build_and_solve(prices, gas, scenario, schedule)` — see top-level [README](../README.md) for decision variables / constraints / objective. Called N times by the driver (once per MC path). |
+| `run_planning_doc.py` | **Headline driver.** Default: Monte Carlo with N=10 paths × cadence cartesian, picks cadence with highest *mean profit across paths*. Stage 2 refines around the winner. `--mc N` for more paths, `--mc 0` for single-path deterministic. |
+| `run_monte_carlo.py` | Single-cadence MC at higher N — faster when cadence comparison not needed |
 
 **Phase 3 — Verification:**
 
