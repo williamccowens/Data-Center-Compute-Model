@@ -210,6 +210,57 @@ def phase_b_report(winner_cad: int,
           f"mean profit ${avg['profit_$M']:,.1f}M")
 
 
+def save_hourly_schedule(winner_cad, prices_list, gas_list, scenario,
+                         scheme, n_paths):
+    """Save the full hourly decision-variable schedule for the winning
+    cadence on a representative price path (path 0). Lets the user see
+    every g_lmp / g_toll / train / inf / BESS choice the LP makes."""
+    print()
+    print("=" * 78)
+    print(f"HOURLY SCHEDULE — winning cadence {_label(winner_cad)} on path 0")
+    print("=" * 78)
+
+    if winner_cad > 0:
+        sch = A.equal_cadence_schedule(winner_cad, token_multiplier_scheme=scheme)
+    else:
+        sch = A.no_training_schedule()
+    res = build_and_solve(prices_list[0], gas_list[0], scenario, sch,
+                          solver_msg=False)
+    h = res.hourly.copy()
+
+    # Save canonical decision variables to CSV
+    keep_cols = ["datetime", "site", "lmp", "rev_inf",
+                 "g_lmp", "g_toll", "train", "inf",
+                 "ch", "dis_dc", "dis_grid", "soc",
+                 "revenue_inf", "revenue_bess", "cost_lmp", "cost_toll",
+                 "cost_bess_ch", "profit"]
+    keep_cols = [c for c in keep_cols if c in h.columns]
+    out_path = OUT_DIR / f"hourly_winner_n{n_paths}_{scheme}.csv"
+    h[keep_cols].to_csv(out_path, index=False)
+    print(f"  Full hourly schedule saved → {out_path.name}")
+    print(f"  ({len(h):,} rows = {len(h)//2:,} hours × 2 sites, "
+          f"{len(keep_cols)} columns)")
+
+    # Print a 24-hour sample so the user can SEE the structure
+    print()
+    print(f"  Sample (first 24 hours at HOUSTON):")
+    sample = (h[h["site"] == A.HOUSTON]
+              .sort_values("datetime")
+              .head(24)
+              [["datetime", "lmp", "g_lmp", "g_toll",
+                "train", "inf", "ch", "dis_dc", "dis_grid"]]
+              if "ch" in h.columns else
+              h[h["site"] == A.HOUSTON]
+              .sort_values("datetime")
+              .head(24)
+              [["datetime", "lmp", "g_lmp", "g_toll", "train", "inf"]])
+    for col in sample.columns:
+        if col not in ("datetime", "site"):
+            sample[col] = sample[col].astype(float).round(2)
+    sample["datetime"] = sample["datetime"].astype(str)
+    print(sample.to_string(index=False))
+
+
 # ──────────────────────────────────────────────────────────────────────
 # MAIN
 # ──────────────────────────────────────────────────────────────────────
@@ -280,6 +331,10 @@ def main():
 
     # Phase B: averaged-across-paths report for the winner
     phase_b_report(winner_cad, breakdowns_by_cad, n_paths, args.scheme)
+
+    # Hourly schedule for the winning cadence (one representative path)
+    save_hourly_schedule(winner_cad, prices_list, gas_list, scenario,
+                         args.scheme, n_paths)
 
 
 if __name__ == "__main__":
