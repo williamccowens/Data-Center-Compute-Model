@@ -97,6 +97,7 @@ hourly `train / inf` split — there is no separate "decider" module.
 | `python model\confirm_schedule.py` | Prints schedule chaining: every `R(k+1).start = R(k).release ✓` for each cadence. |
 | `python model\sanity_check.py` | Confirms R1 inference lockout fires, training meets every floor, BESS sell-to-grid captures spread. |
 | `python model\diagnose_mc.py` | Prints MC path-level price statistics: path-to-path std at sample hours, min/max across paths. |
+| `python model\verify_500_floor_all_paths.py` | Loads the most recent `hourly_winner_all_paths_n*.csv` and confirms every day of every MC path meets the 500 MWh/day training floor (system-total across both sites). |
 
 ### Phase 4 — Subsidiary analyses
 
@@ -133,51 +134,64 @@ pip install pandas numpy openpyxl pulp matplotlib
 ### See the headline result
 
 ```powershell
-# Fast: deterministic 2025-shifted prices (~30 sec)
+# Default: Monte Carlo with N=50 paths, two-stage refined cadence search,
+# mandatory 500 MWh/day training floor, toll + BESS enabled both sites.
+# ~25 min on a 12-core box.
 python model\run_planning_doc.py
 
-# Real-options framing: Monte Carlo over N simulated price paths.
-# For EACH path, sweeps every cadence and reports the per-path optimum.
-# Parallelized over all CPU cores; N=30 takes ~10 min on a 12-core box.
-python model\run_planning_doc.py --mc 30
-python model\run_planning_doc.py --mc 100         # tighter percentiles
-python model\run_planning_doc.py --mc 30 --no-bess  # disable BESS
-python model\run_planning_doc.py --mc 30 --scheme constant  # different token model
+# Faster / tighter percentile variants:
+python model\run_planning_doc.py --mc 10    # quick check (~5 min)
+python model\run_planning_doc.py --mc 100   # tightest percentiles (~50 min)
+python model\run_planning_doc.py --mc 0     # single-path deterministic (debug, ~3 min)
+
+# Procurement / scheme overrides:
+python model\run_planning_doc.py --no-bess --scheme constant
+python model\run_planning_doc.py --include-no-training   # add baseline to candidate set
 ```
 
-Deterministic mode sweeps cadences against the 2025-shifted price proxy
-and ranks by profit. MC mode adds an outer loop over simulated price
-paths (calibrated seasonal OU model on 2025 actuals) and reports the
-**win frequency of each cadence** plus the **distribution of best-per-path
-profit**. This is the doc's "real options" framing.
+**The headline driver runs in two explicit phases:**
 
-**Deterministic result (last run, `doc_blended` scheme):**
+- **Phase A — Cadence selection.** For each candidate cadence (filtered by
+  500 MWh/day floor + grid-capacity check), solve the LP across all N MC
+  paths in parallel and average per-path profits. Stage 1 sweeps the
+  filtered broad set, Stage 2 refines 6 cadences ±30 % around the
+  Stage-1 winner. Pick the cadence with highest mean profit across paths.
+- **Phase B — Locked-cadence reporting.** Re-solve the winning cadence on
+  every path and report averaged-across-paths metrics: cost breakdown,
+  procurement mix (LMP / toll / BESS), profit distribution, and an
+  hourly schedule with `mean ± std` for every decision variable.
 
-| Cadence | # releases | Train (gMWh) | Inf (gMWh) | End rev mult | Profit ($M) |
-|---|---:|---:|---:|---:|---:|
-| **every_30d (monthly) ⭐** | **7** | **460,665** | **415,096** | **1.39×** | **96,003** |
-| every_45d | 5 | 311,831 | 563,930 | 0.62× | 92,205 |
-| every_60d (= planning-doc bimonthly) | 4 | 237,586 | 638,174 | 0.41× | 87,815 |
-| every_90d | 3 | 163,699 | 712,062 | 0.27× | 83,066 |
-| every_180d | 2 | 91,296 | 784,464 | 0.18× | 78,958 |
-| no_training | 0 | 0 | 878,400 | 0.12× | 61,211 |
+### Current defaults (changed from earlier versions)
 
-**Monte Carlo result (N=30 paths, `doc_blended`, toll on, BESS on):**
+| Default | Value | Notes |
+|---|---|---|
+| MC paths (`--mc`) | **50** | Was 0 (deterministic). Switched because committing to a cadence under price uncertainty requires more than one realization. |
+| RFP training floor (`Scenario.training_min_mwh_per_day`) | **500 MWh-grid/day** | Mandatory — was optional. CLI override removed. |
+| `--include-no-training` | **off** | The no-training baseline is degenerate under the mandatory floor (LP pads with 500/day but no releases). Opt in to include as a baseline. |
+| Initial cadences (`INITIAL_CADENCES`) | `[10, 15, 20, 25, 30, 45, 60, 75, 90, 120, 150, 180]` | Filter rejects both ends. After filter usually `[25, 30, 45, 60, 75, 90]`. |
+| BESS at both sites (`Scenario.bess_sites`) | `("HOUSTON", "WEST")` | Both sites, not just Houston. |
+| Houston tolling | enabled by default | Period-long binary option; LP exercises hour-by-hour up to 100 MWh/hr cap. |
+| Param-fit regime | **post-2020** | Was post-2010; post-2020 most closely matches the planning doc's stated R1-R5 numerical values with the 5× competitiveness multiplier. |
+| Token-multiplier scheme | `doc_blended` | quality-uplift × market-decay; configurable. |
 
-Win frequency: **`every_30d` wins 30/30 paths** (100%). The cadence ranking
-is rock-solid — under any plausible price realization, monthly retraining
-beats all alternatives. Profit dispersion is tiny (~$3M range) because the
-cadence-to-cadence gap (~$4B between adjacent ranks) dwarfs the
-within-cadence price-path variance (std $1.10M).
+### Latest headline result (N=50, default scenario)
 
-| Cadence | Mean ($M) | Std | p05 | p95 | Paths won |
-|---|---:|---:|---:|---:|---:|
-| **every_30d** ⭐ | **95,998.75** | **1.10** | **95,997** | **96,000** | **30/30** |
-| every_45d | 92,201.61 | 1.10 | 92,200 | 92,203 | 0 |
-| every_60d (planning-doc) | 87,810.86 | 1.10 | 87,809 | 87,812 | 0 |
-| every_90d | 83,061.77 | 1.10 | 83,060 | 83,063 | 0 |
-| every_180d | 78,953.86 | 1.10 | 78,952 | 78,955 | 0 |
-| no_training | 61,206.64 | 1.09 | 61,205 | 61,208 | 0 |
+After Phase A across 12 candidate cadences (6 pass filter), 50 MC paths:
+
+| Cadence | Mean profit ($M) | Std | p05 | p95 |
+|---|---:|---:|---:|---:|
+| **every_30d ⭐** | **95,998.75** | **1.10** | **95,997** | **96,000** |
+| every_45d | 92,201.61 | 1.10 | 92,200 | 92,203 |
+| every_60d (planning-doc) | 87,810.86 | 1.10 | 87,809 | 87,812 |
+| every_90d | 83,061.77 | 1.10 | 83,060 | 83,063 |
+
+Stage 2 refines `[28d, 32d, 35d, 39d]` — none beat 30d.
+
+**Phase B locked-cadence breakdown (30d, averaged across 50 paths):**
+- Inference revenue $95,076.58M; BESS sell-to-grid $4.52M
+- LMP cost $26.66M; toll cost $3.13M; BESS charge $2.43M; BESS lease $6M
+- **Profit $95,042.88M**
+- LP procurement: LMP 93.6 % / toll 6.4 % / BESS arb (40+ MWh in spike hours)
 
 ### Monte Carlo (real-options framing)
 
@@ -291,6 +305,41 @@ RFP requests **RT-LMP**; the source data we have is **DAM**. Using DAM
 as the closest available proxy. RT is typically more volatile, which
 would slightly increase the value of tolling and BESS arbitrage.
 
+### Tolling parameters
+
+The RFP describes tolling at Houston with several knobs:
+
+| Parameter | Default | Notes |
+|---|---|---|
+| `TOLL_MAX_MW` | 100 (= site grid cap) | Hourly cap on toll draw |
+| `TOLL_FIXED_SURCHARGE_PER_MWH` | $0 | Fixed-surcharge component above HH+$3/MMBtu O&M; RFP didn't specify |
+| **`TOLL_MAX_MWH_PER_DAY`** | **`None` ⚠️ TBD** | RFP-flagged "pre-specified maximum MW-hours of power available throughout each corresponding generation day." Not numerically specified in RFP. Set to a number to enforce a daily MWh cap on Houston toll; leave `None` for unconstrained (current behavior). |
+
+When `TOLL_MAX_MWH_PER_DAY` is set, the LP adds `Σ g_toll[h, HOUSTON] over each day ≤ TOLL_MAX_MWH_PER_DAY`. Otherwise the only toll cap is the hourly `TOLL_MAX_MW` × 24 = 2,400 MWh/day implicit upper bound.
+
+### Compute capacity (FLOPS vs MWh equivalence)
+
+The LP's compute cap `train + inf ≤ 100 grid-MWh/hr` per site is the LP-side equivalent of the hardware teraFLOPS cap, since `FLOPS_PER_COMPUTE_MWH` encodes hardware throughput. At default settings:
+
+| Metric | Value |
+|---|---|
+| `FLOPS_PER_COMPUTE_MWH` | 1.83e21 (60/40 SXM/PCIe split) |
+| **Total sustained TF/s, both sites** | **81.36 PFLOP/s** |
+| Total FLOPS per hour, both sites | 2.93e23 |
+| Daily compute capacity (cMWh) | 3,840 (= 160 MW-compute × 24 h) |
+| Daily compute capacity (grid-MWh) | 4,800 (= 200 MW-grid × 24 h) |
+
+These are surfaced via `assumptions.total_tflops_per_hour()` and `assumptions.min_feasible_cadence_days(release_date)`, which gives the minimum cadence below which a release of size `project_compute_mwh(release_date)` cannot fit at 100% compute utilization. The cadence filter (`cadence_passes_500_floor`) checks this implicitly via the 4,800 grid-MWh/day upper bound.
+
+Minimum-feasible cadence by release date (100% compute training, no inference):
+
+| Release start | Required compute (cMWh) | Min cadence days |
+|---|---:|---:|
+| 2026-06-01 (R1) | 36,289 | 9.5 |
+| 2026-08-01 | 49,912 | 13.0 |
+| 2026-10-01 | 68,650 | 17.9 |
+| 2026-12-01 | 94,422 | 24.6 |
+
 ### Methodology choices (defensible defaults, configurable)
 
 | Choice | Default | Rationale |
@@ -299,8 +348,9 @@ would slightly increase the value of tolling and BESS arbitrage.
 | `PUE` | 1.25 | RFP-fixed |
 | `BESS_POWER_MW` / `BESS_ENERGY_MWH` | 40 / 160 | RFP-fixed |
 | `BESS_ROUND_TRIP_EFF` | 0.92 | RFP-fixed |
-| `TOLL_FIXED_SURCHARGE_PER_MWH` | $0 | RFP didn't specify the fixed-surcharge component above HH+$3/MMBtu O&M; sensitivity easy to add |
-| `training_min_mwh_per_day` (RFP daily floor) | 0 (off) | Set to 500.0 to layer the RFP's "≥ 500 MWh/day training" floor on top of per-release requirements |
+| `training_min_mwh_per_day` (RFP daily floor) | **500 (mandatory)** | RFP-specified minimum, always enforced |
+| `--mc` (Monte Carlo path count) | **50** | Standard error ~14% of within-cadence std at this N; right operating point for cadence ranking |
+| `INITIAL_CADENCES` | `[10, 15, 20, 25, 30, 45, 60, 75, 90, 120, 150, 180]` | Filter rejects both ends; `[25..90]` typically survive |
 
 ---
 

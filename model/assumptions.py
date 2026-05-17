@@ -108,6 +108,13 @@ TOLL_HEAT_RATE_MMBTU_PER_MWH = TOLL_HEAT_RATE_BTU_PER_KWH * 1000.0 / 1e6  # 9.5
 TOLL_VOM_PER_MMBTU         = 3.0              # RFP: $3/MMBTU premium above HH
 TOLL_MAX_MW                = 100.0            # ASSUMPTION: toll covers full 100 MW site capacity
 TOLL_FIXED_SURCHARGE_PER_MWH = 0.0            # ASSUMPTION: fixed toll fee not specified in RFP
+# ── Tolling daily cap (RFP-flagged, value TBD) ────────────────────────────
+# The RFP describes tolling as "a pre-specified maximum MW-hours of power
+# available throughout each corresponding generation day" — i.e. a DAILY
+# MWh cap on toll. The cap value is not given numerically in the RFP and
+# is currently TBD. Set to None = no daily cap (only the hourly TOLL_MAX_MW
+# applies). Set to a number (e.g. 1500.0 or 2400.0) to enforce.
+TOLL_MAX_MWH_PER_DAY: float | None = None     # ⚠️ TBD pending RFP / contract spec
 
 def tolling_cost_per_mwh(henry_hub_price: float) -> float:
     """Convert a daily Henry Hub price ($/MMBtu) → all-in toll cost in $/MWh."""
@@ -169,6 +176,24 @@ def flops_per_compute_mwh(sxm_fraction: float = SXM_FRACTION_DEFAULT) -> float:
     return flops_per_hr_per_site / SITE_COMPUTE_CAPACITY_MW
 
 FLOPS_PER_COMPUTE_MWH = flops_per_compute_mwh()
+
+# Total system-wide teraFLOPS/hour cap derived directly from the hardware
+# spec — useful for sanity-checking and for computing the minimum feasible
+# cadence (the LP's `train + inf ≤ SITE_POWER_CAPACITY_MW` constraint is
+# the same cap expressed in grid-MWh).
+def total_tflops_per_hour(sxm_fraction: float = SXM_FRACTION_DEFAULT) -> float:
+    """Aggregate sustained teraFLOPS/hour across BOTH sites at 100% compute.
+    Equivalent to FLOPS_PER_COMPUTE_MWH × (2 sites × 80 cMWh) ÷ 1e12."""
+    return flops_per_compute_mwh(sxm_fraction) * 2 * SITE_COMPUTE_CAPACITY_MW / 1e12
+
+
+def min_feasible_cadence_days(release_date: date,
+                              sxm_fraction: float = SXM_FRACTION_DEFAULT) -> float:
+    """The cadence below which a release of size `project_compute_mwh(...)`
+    can't fit in its window even at 100% compute. = compute / max_per_day."""
+    cmwh = project_compute_mwh(release_date, sxm_fraction)
+    max_per_day = 2 * SITE_COMPUTE_CAPACITY_MW * 24.0   # both sites, 24 h
+    return cmwh / max_per_day
 
 
 # ── Token-price decay (planning doc) ──────────────────────────────────────

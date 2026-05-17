@@ -204,6 +204,16 @@ def build_and_solve(
             m += pulp.lpSum(train[h][s] for h in idx for s in sites) \
                  >= scenario.training_min_mwh_per_day, f"train_min_{day}"
 
+    # Optional tolling daily-MWh cap (RFP: "max MWh/day per generation day")
+    # Applied at HOUSTON only (no toll at WEST). Skipped if value is None.
+    if (A.TOLL_MAX_MWH_PER_DAY is not None
+            and use_toll
+            and A.TOLL_MAX_MWH_PER_DAY < float("inf")):
+        prices_dt = prices["date"].dt.date
+        for day, idx in prices.groupby(prices_dt).groups.items():
+            m += pulp.lpSum(g_toll[h][A.HOUSTON] for h in idx) \
+                 <= A.TOLL_MAX_MWH_PER_DAY, f"toll_daily_cap_{day}"
+
     # Outside any release's training window, no training is allowed —
     # BUT only if the schedule actually defines windows. With an empty
     # schedule (no releases), training is still allowed everywhere so the
