@@ -13,7 +13,7 @@ price data from `ltemry/FTG-Final-Project`.
 | `optimize.py` | v1 LP — RFP-style 500 MWh/day training floor, constant inference revenue. |
 | `optimize.py` | v2 LP — planning-doc-style training-schedule constraint, per-hour decaying inference revenue. |
 | `run_optimization.py` | v1 driver — 4 procurement scenarios under the flat training floor. |
-| `run_planning_doc.py` | v2 driver — **sweeps training cadences** (monthly / bimonthly / etc.) to find the optimal schedule. |
+| `run_planning_doc.py` | headline driver — sweeps training cadences. Two modes: deterministic 2025-shifted prices (~30 sec) and `--mc N` Monte Carlo × cadences cartesian product, parallel across CPU cores (~10 min for N=30). |
 | `sensitivity.py` | Sweeps token-price scale across {1, 0.1, 0.01, 0.005, 0.001}. |
 | `halflife_sensitivity.py` | Sweeps token-decay half-life × retrain cadence. |
 | `outage_stress.py` | Uri-style and derate scenarios with per-site capacity caps. |

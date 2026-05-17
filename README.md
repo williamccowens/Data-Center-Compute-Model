@@ -58,13 +58,25 @@ pip install pandas numpy openpyxl pulp matplotlib
 ### See the headline result
 
 ```powershell
+# Fast: deterministic 2025-shifted prices (~30 sec)
 python model\run_planning_doc.py
+
+# Real-options framing: Monte Carlo over N simulated price paths.
+# For EACH path, sweeps every cadence and reports the per-path optimum.
+# Parallelized over all CPU cores; N=30 takes ~10 min on a 12-core box.
+python model\run_planning_doc.py --mc 30
+python model\run_planning_doc.py --mc 100         # tighter percentiles
+python model\run_planning_doc.py --mc 30 --no-bess  # disable BESS
+python model\run_planning_doc.py --mc 30 --scheme constant  # different token model
 ```
 
-This runs the cadence sweep across the four built-in token-price schemes
-(`constant`, `quality_uplift`, `market_decay`, `doc_blended`) and ranks
-schedules by profit. Current default scheme is `doc_blended` (quality
-uplift × market decay). Last run produced:
+Deterministic mode sweeps cadences against the 2025-shifted price proxy
+and ranks by profit. MC mode adds an outer loop over simulated price
+paths (calibrated seasonal OU model on 2025 actuals) and reports the
+**win frequency of each cadence** plus the **distribution of best-per-path
+profit**. This is the doc's "real options" framing.
+
+**Deterministic result (last run, `doc_blended` scheme):**
 
 | Cadence | # releases | Train (gMWh) | Inf (gMWh) | End rev mult | Profit ($M) |
 |---|---:|---:|---:|---:|---:|
@@ -74,6 +86,23 @@ uplift × market decay). Last run produced:
 | every_90d | 3 | 163,699 | 712,062 | 0.27× | 83,066 |
 | every_180d | 2 | 91,296 | 784,464 | 0.18× | 78,958 |
 | no_training | 0 | 0 | 878,400 | 0.12× | 61,211 |
+
+**Monte Carlo result (N=30 paths, `doc_blended`, toll on, BESS on):**
+
+Win frequency: **`every_30d` wins 30/30 paths** (100%). The cadence ranking
+is rock-solid — under any plausible price realization, monthly retraining
+beats all alternatives. Profit dispersion is tiny (~$3M range) because the
+cadence-to-cadence gap (~$4B between adjacent ranks) dwarfs the
+within-cadence price-path variance (std $1.10M).
+
+| Cadence | Mean ($M) | Std | p05 | p95 | Paths won |
+|---|---:|---:|---:|---:|---:|
+| **every_30d** ⭐ | **95,998.75** | **1.10** | **95,997** | **96,000** | **30/30** |
+| every_45d | 92,201.61 | 1.10 | 92,200 | 92,203 | 0 |
+| every_60d (planning-doc) | 87,810.86 | 1.10 | 87,809 | 87,812 | 0 |
+| every_90d | 83,061.77 | 1.10 | 83,060 | 83,063 | 0 |
+| every_180d | 78,953.86 | 1.10 | 78,952 | 78,955 | 0 |
+| no_training | 61,206.64 | 1.09 | 61,205 | 61,208 | 0 |
 
 ### Monte Carlo (real-options framing)
 
