@@ -47,6 +47,7 @@ from optimize import (
     solve_across_paths, average_breakdowns,
 )
 from monte_carlo import calibrate_and_simulate, path_to_lp_inputs
+from stress import inject_winter_storm, summarize_stress, SCENARIOS as STRESS_SCENARIOS
 
 
 INITIAL_CADENCES = [10, 15, 20, 25, 30, 45, 60, 75, 90, 120, 150, 180]
@@ -504,6 +505,14 @@ def main():
                    help="Add no_training baseline candidate "
                         "(default excluded — degenerate under mandatory RFP floor)")
     p.add_argument("--seed", type=int, default=42)
+    p.add_argument("--stress", default="none",
+                   choices=list(STRESS_SCENARIOS),
+                   help="Inject Uri-style winter-storm spikes into MC paths "
+                        "before optimizing (default: none). 'mild' / 'moderate' "
+                        "/ 'uri_full' apply progressively more severe overlays. "
+                        "Only effective with --mc > 0.")
+    p.add_argument("--stress-seed", type=int, default=7,
+                   help="RNG seed for stress-injection (independent from --seed).")
     args = p.parse_args()
 
     scenario = A.Scenario(
@@ -523,6 +532,12 @@ def main():
           "(mandatory)")
     print(f"  mode           : "
           f"{'Monte Carlo, N=' + str(args.mc) if args.mc > 0 else 'deterministic single path'}")
+    print(f"  stress         : {args.stress}"
+          + ("" if args.stress == "none"
+             else f" (FTG phase-4 overlay, {STRESS_SCENARIOS[args.stress]['hours']}h "
+                  f"@ ${STRESS_SCENARIOS[args.stress]['price_range'][0]}–"
+                  f"${STRESS_SCENARIOS[args.stress]['price_range'][1]}/MWh, "
+                  f"p={STRESS_SCENARIOS[args.stress]['prob']:.2f})"))
     print()
 
     # Build the list of price paths (1 if deterministic, N if MC)
@@ -537,6 +552,12 @@ def main():
               f"monte_carlo.calibrate_and_simulate() ...")
         model, sim = calibrate_and_simulate(n_paths=args.mc, seed=args.seed)
         print(model.summary().to_string(index=False))
+        if args.stress != "none":
+            sim_base = sim
+            sim = inject_winter_storm(sim, scenario_name=args.stress,
+                                      rng_seed=args.stress_seed)
+            print(f"\n[Stress overlay '{args.stress}' applied to MC paths]")
+            print(summarize_stress(sim_base, sim).to_string(index=False))
         prices_list, gas_list = [], []
         for i in range(args.mc):
             p_i, g_i = path_to_lp_inputs(sim, i)
