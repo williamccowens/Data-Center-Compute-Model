@@ -394,12 +394,15 @@ def run_monte_carlo(scenario, scheme, n_paths, seed, include_no_training=False):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--mc",  type=int, default=10,
-                   help="Number of Monte-Carlo price paths. Default 10 — "
-                        "the headline optimization should commit to a cadence "
-                        "under price uncertainty, not on a single deterministic "
-                        "path. Set 0 to use the deterministic 2025-shifted "
-                        "proxy (fast debug / sanity).")
+    p.add_argument("--mc",  type=int, default=50,
+                   help="Number of Monte-Carlo price paths. Default 50 — "
+                        "tight enough to commit to a cadence under price "
+                        "uncertainty (standard error ≈ 14%% of within-cadence "
+                        "std). Runtime ~25 min on 11 parallel workers. "
+                        "Use --mc 100 for production estimates (~50 min), "
+                        "--mc 10 for a quick check (~5 min), "
+                        "--mc 0 for the deterministic single-path proxy "
+                        "(fast debug / sanity, ~3 min).")
     p.add_argument("--scheme", default="doc_blended",
                    choices=["constant", "quality_uplift",
                             "market_decay", "doc_blended"])

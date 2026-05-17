@@ -42,9 +42,10 @@ consume the same primitives.
 | File | Role |
 |---|---|
 | `model/optimize.py` | **The LP.** `build_and_solve(prices, gas, scenario, schedule)` constructs and solves the linear program. This is what the drivers call N times (one per MC price path) with the same scenario/schedule. |
-| `python model\run_planning_doc.py` | **Headline driver.** Default mode runs Monte Carlo with N=10 price paths × cadence cartesian, picks the cadence with highest *mean profit across paths* (committing under uncertainty, not on a single deterministic realization). Stage 2 refinement around the winner. |
-| `python model\run_planning_doc.py --mc 30` | Same but with more paths for tighter percentiles. ~10 min for N=30. |
-| `python model\run_planning_doc.py --mc 0` | Opt out of MC, run on the single deterministic 2025-shifted proxy. Faster (~3 min) but answer is for *one* price realization only. Use for debugging / quick checks. |
+| `python model\run_planning_doc.py` | **Headline driver.** Default mode runs Monte Carlo with **N=50 price paths × cadence cartesian** (~25 min on 11 parallel workers). Picks the cadence with highest *mean profit across paths* — committing under price uncertainty, not on a single deterministic realization. Stage 2 refines around the winner. |
+| `python model\run_planning_doc.py --mc 100` | Production estimate with tighter percentiles (~50 min). |
+| `python model\run_planning_doc.py --mc 10` | Quick check (~5 min). Std error larger but the cadence ranking is usually stable. |
+| `python model\run_planning_doc.py --mc 0` | Opt out of MC, run on the single deterministic 2025-shifted proxy (~3 min). Answer is for *one* price realization only — use for debugging / quick sanity. |
 | `python model\run_monte_carlo.py -n 50` | Same MC framework but with a single fixed cadence (default 60d). Faster than the full cartesian sweep when you don't need cadence comparison. |
 
 ### Decision variables and constraints (in `optimize.py`)

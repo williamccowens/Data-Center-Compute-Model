@@ -29,7 +29,7 @@ The top-level [README.md](../README.md) has the full phase ordering. Briefly:
 | File | Purpose |
 |---|---|
 | `optimize.py` | **The LP.** `build_and_solve(prices, gas, scenario, schedule)` — see top-level [README](../README.md) for decision variables / constraints / objective. Called N times by the driver (once per MC path). |
-| `run_planning_doc.py` | **Headline driver.** Default: Monte Carlo with N=10 paths × cadence cartesian, picks cadence with highest *mean profit across paths*. Stage 2 refines around the winner. `--mc N` for more paths, `--mc 0` for single-path deterministic. |
+| `run_planning_doc.py` | **Headline driver.** Default: Monte Carlo with **N=50 paths × cadence cartesian** (~25 min), picks cadence with highest *mean profit across paths*. Stage 2 refines around the winner. `--mc 100` for tighter percentiles, `--mc 10` for a quick check, `--mc 0` for single-path deterministic. |
 | `run_monte_carlo.py` | Single-cadence MC at higher N — faster when cadence comparison not needed |
 
 **Phase 3 — Verification:**
