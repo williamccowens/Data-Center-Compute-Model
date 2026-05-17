@@ -385,9 +385,11 @@ from the relevant row of `fit_growth_curves.py` output.
 
 ### Price input
 
-RFP requests **RT-LMP**; the source data we have is **DAM**. Using DAM
-as the closest available proxy. RT is typically more volatile, which
-would slightly increase the value of tolling and BESS arbitrage.
+| Item | Default | Notes |
+|---|---|---|
+| DAM vs RT-LMP | DAM (only source available) | RFP requests RT-LMP; we use DAM as the closest available proxy. RT is typically more volatile ⇒ would slightly increase value of tolling and BESS arbitrage. |
+| Forward-curve drift | None | MC paths are simulated from OU calibrated on 2025 actuals (deterministic baseline = 2025 DAM shifted +1 yr). No structural drift / forward-curve adjustment for 2025 → 2026 fuel / load changes. An additive shift or recalibrated long-run mean would tighten the estimate if gas or load forecasts indicate meaningful drift. |
+| MC path count | 50 (default) | Tight enough for cadence ranking (cadence gaps are billions; path-stdev is millions). **Procurement decisions are noisier** — Phase C gaps are ~$5M while path-stdev is ~$30M, so 200+ paths recommended when you need to defend a specific Phase C winner. |
 
 ### Tolling parameters
 
@@ -400,6 +402,15 @@ The RFP describes tolling at Houston with several knobs:
 | **`TOLL_MAX_MWH_PER_DAY`** | **`None` ⚠️ TBD** | RFP-flagged "pre-specified maximum MW-hours of power available throughout each corresponding generation day." Not numerically specified in RFP. Set to a number to enforce a daily MWh cap on Houston toll; leave `None` for unconstrained (current behavior). |
 
 When `TOLL_MAX_MWH_PER_DAY` is set, the LP adds `Σ g_toll[h, HOUSTON] over each day ≤ TOLL_MAX_MWH_PER_DAY`. Otherwise the only toll cap is the hourly `TOLL_MAX_MW` × 24 = 2,400 MWh/day implicit upper bound.
+
+### BESS contract
+
+40 MW / 160 MWh / 92 % RTE are RFP-fixed and assumed firm. Open items concern the lease structure and depreciation:
+
+| Parameter | Default | Notes |
+|---|---|---|
+| BESS lease structure | $60M capex / 15 yr / 2 + $2M opex/yr / 2 = $3M / site / 6 months | ⚠ Confirm this matches the actual tolling-style lease structure for the prescribed BESS rather than an outright-buy amortization. Drives whether Phase C ever picks BESS at the locked cadence (currently it doesn't). |
+| Degradation | Not modelled | 6-month horizon is short, plausibly second-order. Could be added as a linear capacity fade if longer horizons are evaluated. |
 
 ### Compute capacity (FLOPS vs MWh equivalence)
 
@@ -424,16 +435,28 @@ Minimum-feasible cadence by release date (100% compute training, no inference):
 | 2026-10-01 | 68,650 | 17.9 |
 | 2026-12-01 | 94,422 | 24.6 |
 
+### PUE
+
+| Parameter | Default | Notes |
+|---|---|---|
+| `PUE` | 1.25 uniformly | Hyperscale data centers run 1.10–1.40 depending on cooling, climate, and load factor. A Houston-vs-West-Texas differential is plausible given the climate gap; currently applied uniformly across both sites. |
+
+### RFP constraints — partially covered, still to report / model
+
+| Item | Status | Notes |
+|---|---|---|
+| **Uri-style outage stress** | **Ported (optional)** | `model/stress.py` + `--stress {none\|mild\|moderate\|uri_full}` on the headline driver. Default `none`. Toggle on to inject FTG phase-4 spike windows into the MC paths before optimizing. |
+| Wind-solar intermittency / MIHR (qualitative) | To report | Phase 4 in the FTG repo computes LMP-implied intermittency signatures (diurnal percentile profile, evening-ramp premium, negative-LMP frequency at HB_WEST). Analysis logic exists; not currently a module in our codebase — include the diagnostics in the final report. |
+| Capacity-factor derate (true MIHR-style) | Not implemented | LP currently assumes `capacity_factor = 1.0`. A direct MIHR model would multiply the per-site grid cap by a stochastic `capacity_factor[h] ≤ 1` driven by renewables + transmission. Distinct from the LMP-signature view above. |
+
 ### Methodology choices (defensible defaults, configurable)
 
 | Choice | Default | Rationale |
 |---|---|---|
 | `PARAM_COMPETITIVENESS_MULTIPLIER` | 5× | Planning doc: bridge Epoch AI data (cutoff ~2023) → 2026 frontier-class models |
-| `PUE` | 1.25 | RFP-fixed |
 | `BESS_POWER_MW` / `BESS_ENERGY_MWH` | 40 / 160 | RFP-fixed |
 | `BESS_ROUND_TRIP_EFF` | 0.92 | RFP-fixed |
 | `training_min_mwh_per_day` (RFP daily floor) | **500 (mandatory)** | RFP-specified minimum, always enforced |
-| `--mc` (Monte Carlo path count) | **50** | Standard error ~14% of within-cadence std at this N; right operating point for cadence ranking |
 | `INITIAL_CADENCES` | `[10, 15, 20, 25, 30, 45, 60, 75, 90, 120, 150, 180]` | Filter rejects both ends; `[25..90]` typically survive |
 
 ---
