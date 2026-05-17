@@ -1,4 +1,4 @@
-// Generates "Project Planning v2.docx" — fills out the planning sections
+// Generates "Final Project Report.docx" — fills out the planning sections
 // (Training+Inference, Inference, Conversion, Power, Model Dynamic) with
 // concrete descriptions of what's actually implemented in code. Leaves
 // the class-report skeleton (Executive Summary, Model Setup, etc.) blank
@@ -409,7 +409,7 @@ const doc = new Document({
 });
 
 Packer.toBuffer(doc).then(buffer => {
-  const out = path.join(ROOT, "Project Planning v2.docx");
+  const out = path.join(ROOT, "Final Project Report.docx");
   fs.writeFileSync(out, buffer);
   console.log("Wrote", out, `(${buffer.length} bytes)`);
 });
