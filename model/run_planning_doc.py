@@ -69,10 +69,13 @@ INITIAL_CADENCES = [10, 15, 20, 25, 30, 40, 50, 60, 75, 90]
 # ↑ 10 broad candidates spanning ~2 weeks to ~3 months. Filtered downstream
 #   to drop any cadence where R2's natural training rate < 500 grid-MWh/day.
 
-def stage1_schedules(scheme: str) -> tuple[list[A.TrainingSchedule], list[int]]:
-    """10 broad cadences (filtered by 500 MWh/day floor AND grid capacity)
-    + a no-training baseline. Returns (schedules, cadence_days_per_schedule).
-    cadence_days = 0 marks the no-training baseline."""
+def stage1_schedules(scheme: str, include_no_training: bool = False
+                     ) -> tuple[list[A.TrainingSchedule], list[int]]:
+    """10 broad cadences (filtered by 500 MWh/day floor AND grid capacity).
+    The "no training" baseline is excluded by default — with the RFP daily
+    floor enabled it isn't really "no training" (the LP pads with floor-
+    mandated training but no releases), it's a degenerate scenario.
+    Pass include_no_training=True to keep it as an explicit baseline."""
     valid = []
     rejected = []
     for c in INITIAL_CADENCES:
@@ -82,10 +85,13 @@ def stage1_schedules(scheme: str) -> tuple[list[A.TrainingSchedule], list[int]]:
             rejected.append(c)
     if rejected:
         print(f"  ⚠ Filtered out cadences (fail 500-floor or capacity check): {rejected}")
-    sched = [A.no_training_schedule()] + [
-        A.equal_cadence_schedule(c, token_multiplier_scheme=scheme) for c in valid
-    ]
-    cad_days = [0] + valid
+    sched, cad_days = [], []
+    if include_no_training:
+        sched.append(A.no_training_schedule())
+        cad_days.append(0)
+    for c in valid:
+        sched.append(A.equal_cadence_schedule(c, token_multiplier_scheme=scheme))
+        cad_days.append(c)
     return sched, cad_days
 
 
@@ -108,19 +114,48 @@ def solve_one(prices, gas, scenario, schedule):
     return profit, res
 
 
+def cost_breakdown(res, scenario) -> dict:
+    """Decompose the LP solution into revenue + cost components (in $M).
+    Surfaces what the LP actually decided between LMP / tolling / BESS."""
+    h = res.hourly
+    rev_inf  = h["revenue_inf"].sum()
+    rev_bess = h["revenue_bess"].sum()
+    cost_lmp     = h["cost_lmp"].sum()
+    cost_toll    = h["cost_toll"].sum()
+    cost_bess_ch = h["cost_bess_ch"].sum() if "cost_bess_ch" in h.columns else 0.0
+    bess_lease   = (len(scenario.bess_sites) * A.BESS_6MO_LEASE_COST
+                    if scenario.use_bess else 0.0)
+    return {
+        "rev_inf_$M":          rev_inf / 1e6,
+        "rev_bess_grid_$M":    rev_bess / 1e6,
+        "cost_lmp_$M":         cost_lmp / 1e6,
+        "cost_toll_$M":        cost_toll / 1e6,
+        "cost_bess_ch_$M":     cost_bess_ch / 1e6,
+        "bess_lease_$M":       bess_lease / 1e6,
+        "profit_$M":           (rev_inf + rev_bess - cost_lmp - cost_toll
+                                - cost_bess_ch - bess_lease) / 1e6,
+        "g_lmp_total_mwh":     h["g_lmp"].sum(),
+        "g_toll_total_mwh":    h["g_toll"].sum(),
+        "bess_ch_total_mwh":   h["ch"].sum() if "ch" in h.columns else 0.0,
+        "bess_dis_dc_mwh":     h["dis_dc"].sum() if "dis_dc" in h.columns else 0.0,
+        "bess_dis_grid_mwh":   h["dis_grid"].sum() if "dis_grid" in h.columns else 0.0,
+    }
+
+
 def label_of(sch):
     return sch.name.split("_doc_blended")[0].split("_constant")[0] \
                    .split("_quality_uplift")[0].split("_market_decay")[0]
 
 
-def run_deterministic(scenario, scheme):
+def run_deterministic(scenario, scheme, include_no_training=False):
     prices, gas = load_price_panel()
 
-    # Stage 1 — 10 broad cadences (filtered) + no_training baseline
-    s1_sched, s1_cad = stage1_schedules(scheme)
+    # Stage 1 — broad cadences (filtered). no_training excluded by default.
+    s1_sched, s1_cad = stage1_schedules(scheme, include_no_training=include_no_training)
     s1_labels = [f"{c}d" if c > 0 else "no_training" for c in s1_cad]
     print(f"\n[Stage 1] Candidates: {s1_labels}  "
-          f"(filtered from {INITIAL_CADENCES} + no_training)")
+          f"(filtered from {INITIAL_CADENCES}"
+          + (' + no_training' if include_no_training else '') + ")")
     rows1 = []
     for sch, lab in zip(s1_sched, s1_labels):
         t0 = time.time()
@@ -162,6 +197,37 @@ def run_deterministic(scenario, scheme):
     print(f"RANKING — deterministic 2025-proxy, scheme={scheme}  (both stages)")
     print("=" * 70)
     print(df_all.to_string(index=False))
+
+    # Re-solve the winner to surface the LP's procurement decisions
+    best = df_all.iloc[0]
+    best_cad = int(best["cadence_days"])
+    if best_cad > 0:
+        best_sch = A.equal_cadence_schedule(best_cad, token_multiplier_scheme=scheme)
+    else:
+        best_sch = A.no_training_schedule()
+    _, best_res = solve_one(prices, gas, scenario, best_sch)
+    cb = cost_breakdown(best_res, scenario)
+    print("\n" + "=" * 70)
+    print(f"WINNER COST BREAKDOWN ({best['schedule']}, $M over 6 months)")
+    print("=" * 70)
+    print(f"  Inference revenue          {cb['rev_inf_$M']:>12,.2f}")
+    print(f"  BESS sell-to-grid revenue  {cb['rev_bess_grid_$M']:>12,.2f}")
+    print(f"  ─ LMP power cost          −{cb['cost_lmp_$M']:>12,.2f}")
+    print(f"  ─ Toll power cost         −{cb['cost_toll_$M']:>12,.2f}")
+    print(f"  ─ BESS charge cost        −{cb['cost_bess_ch_$M']:>12,.2f}")
+    print(f"  ─ BESS 6-mo lease         −{cb['bess_lease_$M']:>12,.2f}")
+    print(f"  {'─' * 38}")
+    print(f"  PROFIT                     {cb['profit_$M']:>12,.2f}")
+    print()
+    print(f"  LP's hourly procurement choices (MWh over 6 months):")
+    g_total = cb["g_lmp_total_mwh"] + cb["g_toll_total_mwh"]
+    print(f"    LMP grid draw       {cb['g_lmp_total_mwh']:>10,.0f}  "
+          f"({cb['g_lmp_total_mwh']/g_total*100 if g_total else 0:.1f}% of total grid draw)")
+    print(f"    Tolling draw        {cb['g_toll_total_mwh']:>10,.0f}  "
+          f"({cb['g_toll_total_mwh']/g_total*100 if g_total else 0:.1f}%)")
+    print(f"    BESS charge         {cb['bess_ch_total_mwh']:>10,.0f}")
+    print(f"    BESS discharge → DC {cb['bess_dis_dc_mwh']:>10,.0f}")
+    print(f"    BESS discharge→grid {cb['bess_dis_grid_mwh']:>10,.0f}")
     best = df_all.iloc[0]
     print(f"\n⭐ Optimal cadence: {best['schedule']}  →  ${best['profit_$M']:,.1f}M profit")
 
@@ -215,7 +281,7 @@ def _cartesian_sweep(scenario, schedules, prices_all, gas_all,
     return grid
 
 
-def run_monte_carlo(scenario, scheme, n_paths, seed):
+def run_monte_carlo(scenario, scheme, n_paths, seed, include_no_training=False):
     print(f"\n[Calibrate+simulate] {n_paths} paths via "
           f"monte_carlo.calibrate_and_simulate() ...", flush=True)
     model, sim = calibrate_and_simulate(n_paths=n_paths, seed=seed)
@@ -227,11 +293,12 @@ def run_monte_carlo(scenario, scheme, n_paths, seed):
     for i in range(n_paths):
         prices_all[i], gas_all[i] = path_to_lp_inputs(sim, i)
 
-    # ── Stage 1: 10 broad cadences (filtered by 500 MWh/day floor) ──
-    s1_sched, s1_cad = stage1_schedules(scheme)
+    # ── Stage 1: broad cadences (filtered by 500 MWh/day floor) ──
+    s1_sched, s1_cad = stage1_schedules(scheme, include_no_training=include_no_training)
     s1_labels = [f"{c}d" if c > 0 else "no_training" for c in s1_cad]
     print(f"\n[Stage 1] Candidates: {s1_labels} "
-          f"(filtered from {INITIAL_CADENCES} + no_training)")
+          f"(filtered from {INITIAL_CADENCES}"
+          + (' + no_training' if include_no_training else '') + ")")
     g1 = _cartesian_sweep(scenario, s1_sched, prices_all, gas_all, "stage1")
 
     # Identify stage-1 winner = cadence with highest MEAN profit across paths
@@ -333,6 +400,10 @@ def main():
                    dest="rfp_floor",
                    help="Daily training floor in grid-MWh "
                         "(default 500 = RFP. Set 0 to disable.)")
+    p.add_argument("--include-no-training", action="store_true",
+                   help="Add no-training as a baseline candidate "
+                        "(default: excluded since with the RFP floor "
+                        "it is degenerate)")
     p.add_argument("--seed",  type=int, default=42)
     args = p.parse_args()
 
@@ -354,9 +425,11 @@ def main():
     print()
 
     if args.mc > 0:
-        run_monte_carlo(scenario, args.scheme, args.mc, args.seed)
+        run_monte_carlo(scenario, args.scheme, args.mc, args.seed,
+                        include_no_training=args.include_no_training)
     else:
-        run_deterministic(scenario, args.scheme)
+        run_deterministic(scenario, args.scheme,
+                          include_no_training=args.include_no_training)
 
 
 if __name__ == "__main__":
