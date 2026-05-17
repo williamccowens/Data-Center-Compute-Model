@@ -369,11 +369,6 @@ const content = [
     { text: "SXM vs PCIe split", bold: true },
     " — currently 60 / 40. Drives the aggregate FLOPS_PER_COMPUTE_MWH; today it is collapsed into a single number. Once the split is set, we can also split the LP's `train` variable per hardware class (SXM preferred for training, PCIe biased to inference).",
   ),
-  BULLET_R(
-    { text: "PUE", bold: true },
-    " — currently 1.25, applied uniformly. Hyperscale data centers run 1.10–1.40 depending on cooling, climate, and load factor; a Houston-vs-West Texas differential is plausible.",
-  ),
-
   H2("Inference revenue model"),
   BULLET_R(
     { text: "Token-price projection", bold: true },

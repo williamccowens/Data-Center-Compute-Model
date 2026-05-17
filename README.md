@@ -244,6 +244,13 @@ python model\run_planning_doc.py --mc 50 --stress uri_full   # 100h, $5K-9K/MWh 
   procurement, then save the per-path and averaged hourly schedules for
   the optimal policy (g_lmp, g_toll, train, inf, compute-MWh and FLOPS
   versions, BESS dispatch if enabled).
+- **Consolidated record.** A `run_summary_n{N}_{scheme}.json` (or
+  `…_stress-{name}.json` when stress overlay is on) is also written
+  alongside the CSVs. It contains the full config, Phase A cadence
+  ranking, Phase B locked-cadence breakdown + profit distribution,
+  Phase C procurement ranking, verification table, final policy
+  headline, and filename pointers to the four CSVs — so one file
+  answers "what did this run decide?" without opening any CSVs.
 
 ### Current defaults (changed from earlier versions)
 
@@ -435,12 +442,6 @@ Minimum-feasible cadence by release date (100% compute training, no inference):
 | 2026-10-01 | 68,650 | 17.9 |
 | 2026-12-01 | 94,422 | 24.6 |
 
-### PUE
-
-| Parameter | Default | Notes |
-|---|---|---|
-| `PUE` | 1.25 uniformly | Hyperscale data centers run 1.10–1.40 depending on cooling, climate, and load factor. A Houston-vs-West-Texas differential is plausible given the climate gap; currently applied uniformly across both sites. |
-
 ### RFP constraints — partially covered, still to report / model
 
 | Item | Status | Notes |
@@ -454,6 +455,7 @@ Minimum-feasible cadence by release date (100% compute training, no inference):
 | Choice | Default | Rationale |
 |---|---|---|
 | `PARAM_COMPETITIVENESS_MULTIPLIER` | 5× | Planning doc: bridge Epoch AI data (cutoff ~2023) → 2026 frontier-class models |
+| `PUE` | 1.25 | RFP-fixed |
 | `BESS_POWER_MW` / `BESS_ENERGY_MWH` | 40 / 160 | RFP-fixed |
 | `BESS_ROUND_TRIP_EFF` | 0.92 | RFP-fixed |
 | `training_min_mwh_per_day` (RFP daily floor) | **500 (mandatory)** | RFP-specified minimum, always enforced |

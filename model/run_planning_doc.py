@@ -209,6 +209,7 @@ def phase_b_report(winner_cad: int,
     df.to_csv(OUT_DIR / f"mc_summary_n{n_paths}_{scheme}.csv", index=False)
     print(f"\n⭐ Optimal cadence: {_label(winner_cad)}  →  "
           f"mean profit ${avg['profit_$M']:,.1f}M")
+    return avg, rows
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -289,7 +290,7 @@ def phase_c_procurement_optimization(winner_cad, prices_list, gas_list,
           .to_string(index=False, float_format=lambda x: f"{x:,.2f}"))
 
     print(f"\n⭐ Optimal procurement: {best_name}  →  ${best_mean:,.2f}M mean profit")
-    return best_scenario, best_name, best_mean
+    return best_scenario, best_name, best_mean, rows
 
 
 def verify_cadence_under_optimal_procurement(initial_winner_cad,
@@ -338,7 +339,7 @@ def verify_cadence_under_optimal_procurement(initial_winner_cad,
         print(f"      verified (optimal procurement): {_label(verified_winner)}")
         print(f"      Δ profit: ${results[verified_winner] - results[initial_winner_cad]:+,.2f}M")
         print(f"  → Using {_label(verified_winner)} for final hourly schedule")
-    return verified_winner, confirmed
+    return verified_winner, confirmed, results
 
 
 def save_hourly_schedule(winner_cad, prices_list, gas_list, scenario,
@@ -577,24 +578,27 @@ def main():
     # the ORIGINAL (all-on) procurement. Useful as a diagnostic that
     # shows what the LP does when given every option, before we strip
     # out the negative-NPV ones.
-    phase_b_report(winner_cad, breakdowns_by_cad, n_paths, args.scheme)
+    phase_b_avg, phase_a_rows = phase_b_report(
+        winner_cad, breakdowns_by_cad, n_paths, args.scheme)
 
     # Phase C: at the locked cadence, pick the procurement combination
     # that maximizes expected profit *including* fixed costs (BESS lease).
     # The Phase A→B chain finds the optimal cadence under "everything-on"
     # procurement; Phase C inverts and finds the optimal procurement at
     # the locked cadence.
-    best_scenario, best_name, best_mean = phase_c_procurement_optimization(
-        winner_cad, prices_list, gas_list, args.scheme, n_paths,
-    )
+    best_scenario, best_name, best_mean, phase_c_rows = \
+        phase_c_procurement_optimization(
+            winner_cad, prices_list, gas_list, args.scheme, n_paths,
+        )
 
     # Verification: confirm Phase A's cadence winner still wins under
     # Phase C's optimal procurement (in case the procurement choice
     # shifts the cadence ranking — unlikely but worth checking).
-    verified_cad, confirmed = verify_cadence_under_optimal_procurement(
-        winner_cad, best_scenario, prices_list, gas_list,
-        args.scheme, n_paths,
-    )
+    verified_cad, confirmed, verify_results = \
+        verify_cadence_under_optimal_procurement(
+            winner_cad, best_scenario, prices_list, gas_list,
+            args.scheme, n_paths,
+        )
 
     # Hourly schedule for the OPTIMAL (cadence, procurement) combo —
     # not the default-all-on one. This is the actionable headline.
@@ -609,6 +613,132 @@ def main():
           f"includes all fixed costs)")
     save_hourly_schedule(verified_cad, prices_list, gas_list, best_scenario,
                          args.scheme, n_paths)
+
+    # One-stop consolidated record. All numbers in $M unless suffixed.
+    write_run_summary(
+        args=args, n_paths=n_paths, scenario=scenario,
+        breakdowns_by_cad=breakdowns_by_cad,
+        phase_a_rows=phase_a_rows,
+        winner_cad=winner_cad,
+        phase_b_avg=phase_b_avg,
+        phase_c_rows=phase_c_rows,
+        best_name=best_name, best_scenario=best_scenario, best_mean=best_mean,
+        verified_cad=verified_cad, confirmed=confirmed,
+        verify_results=verify_results,
+    )
+
+
+def write_run_summary(*, args, n_paths, scenario,
+                       breakdowns_by_cad, phase_a_rows,
+                       winner_cad,
+                       phase_b_avg,
+                       phase_c_rows,
+                       best_name, best_scenario, best_mean,
+                       verified_cad, confirmed, verify_results):
+    """Consolidate every result from this headline run into one JSON file
+    at OUT_DIR / run_summary_n{N}_{scheme}[_stress-{name}].json.
+
+    Co-locates: config, Phase A ranking, Phase B cost breakdown, Phase C
+    procurement ranking, verification table, final policy headline, and
+    pointers to the four CSV outputs."""
+    import json
+    from datetime import datetime, timezone
+
+    def _f(x):
+        return float(x) if x is not None else None
+
+    # Profit distribution at the winning cadence (Phase B inputs)
+    winner_bds = breakdowns_by_cad[winner_cad]
+    winner_profits = np.array([b["profit_$M"] for b in winner_bds])
+
+    stress_meta = None
+    if getattr(args, "stress", "none") != "none":
+        from stress import SCENARIOS as _SS
+        spec = _SS[args.stress]
+        stress_meta = {
+            "scenario":    args.stress,
+            "rng_seed":    args.stress_seed,
+            "hours":       spec["hours"],
+            "price_range": list(spec["price_range"]),
+            "gas_spike":   spec["gas_spike"],
+            "prob":        spec["prob"],
+        }
+
+    stem = f"n{n_paths}_{args.scheme}"
+    if stress_meta:
+        stem += f"_stress-{args.stress}"
+
+    summary = {
+        "generated_utc": datetime.now(timezone.utc).isoformat(),
+        "config": {
+            "mc_paths":       n_paths,
+            "scheme":         args.scheme,
+            "seed":           args.seed,
+            "stress":         stress_meta,
+            "use_toll":       scenario.use_houston_tolling,
+            "use_bess":       scenario.use_bess,
+            "bess_sites":     list(scenario.bess_sites)
+                              if scenario.use_bess else [],
+            "training_min_mwh_per_day": scenario.training_min_mwh_per_day,
+            "include_no_training":      bool(args.include_no_training),
+        },
+        "final_policy": {
+            "cadence_days":       int(verified_cad),
+            "cadence_label":      _label(verified_cad),
+            "cadence_confirmed":  bool(confirmed),
+            "initial_cadence":    int(winner_cad),
+            "procurement":        best_name,
+            "procurement_scenario": {
+                "use_toll":   best_scenario.use_houston_tolling,
+                "use_bess":   best_scenario.use_bess,
+                "bess_sites": list(best_scenario.bess_sites)
+                              if best_scenario.use_bess else [],
+            },
+            "mean_profit_$M":     _f(best_mean),
+        },
+        "phase_a_cadence_ranking": phase_a_rows,
+        "phase_b_locked_cadence": {
+            "cadence_days":       int(winner_cad),
+            "procurement":        "all-on (diagnostic)",
+            "averaged_breakdown": {k: _f(v) for k, v in phase_b_avg.items()},
+            "profit_distribution_$M": {
+                "mean": _f(winner_profits.mean()),
+                "std":  _f(winner_profits.std()),
+                "p05":  _f(np.percentile(winner_profits, 5)),
+                "p50":  _f(np.percentile(winner_profits, 50)),
+                "p95":  _f(np.percentile(winner_profits, 95)),
+            },
+        },
+        "phase_c_procurement_ranking": phase_c_rows,
+        "verification": {
+            "cadence_under_optimal_procurement": {
+                _label(c): _f(p) for c, p in verify_results.items()
+            },
+            "confirmed": bool(confirmed),
+        },
+        "output_files": {
+            "phase_a_cadence_csv":
+                f"mc_summary_n{n_paths}_{args.scheme}.csv",
+            "phase_c_procurement_csv":
+                f"phase_c_procurement_n{n_paths}_{args.scheme}.csv",
+            "hourly_all_paths_csv":
+                f"hourly_winner_all_paths_n{n_paths}_{args.scheme}.csv",
+            "hourly_avg_csv":
+                f"hourly_winner_avg_n{n_paths}_{args.scheme}.csv",
+        },
+    }
+
+    out_json = OUT_DIR / f"run_summary_{stem}.json"
+    with open(out_json, "w") as f:
+        json.dump(summary, f, indent=2, default=str)
+
+    print()
+    print("=" * 78)
+    print(f"RUN SUMMARY consolidated → {out_json.name}")
+    print("=" * 78)
+    print(f"  Final policy: {_label(verified_cad)} × {best_name}")
+    print(f"  Mean profit:  ${best_mean:,.2f}M across {n_paths} MC paths")
+    print(f"  Output CSVs co-located in:  {OUT_DIR}")
 
 
 if __name__ == "__main__":
