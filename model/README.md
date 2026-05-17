@@ -115,6 +115,22 @@ cheapest hours each day. Capacity binds 100% of hours at both sites.
 | 3. LMP + BESS at both sites | 131,113.0 | **−6.0** |
 | 4. LMP + tolling + BESS | 131,114.1 | −4.9 |
 
+### How tolling is modeled
+
+Tolling is a **period-long binary commitment with hourly optionality**:
+
+- `Scenario.use_houston_tolling` is the binary decision for the WHOLE
+  6-month horizon. Once enabled, the option is available at every hour.
+- Within the period, the LP picks `g_lmp[h, HOUSTON]` vs `g_toll[h, HOUSTON]`
+  hour-by-hour — toll is used when LMP > toll cost (≈ $57/MWh at $3 HH gas),
+  LMP is used otherwise. The "contract" lets you buy power at HH+$3 only
+  when you want to; there's no obligation to take a fixed quantity.
+- Hourly cap: `TOLL_MAX_MW = 100` MWh/hr (= site capacity). The RFP
+  describes a "pre-specified maximum MW-hours per generation day" — a
+  daily cap — which we don't currently enforce (no cap value specified).
+  Add a `daily_toll_cap` constraint to `optimize.py` if needed.
+- West Texas has no tolling option (RFP — no nat-gas plant available).
+
 ### Why tolling adds value (+$1.1M)
 
 Houston LMP exceeds the toll cost (≈ $57/MWh at $3 HH gas) in ~800 hours
