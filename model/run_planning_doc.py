@@ -65,9 +65,16 @@ def _solve_job(args):
     return i, j, profit
 
 
-INITIAL_CADENCES = [10, 15, 20, 25, 30, 40, 50, 60, 75, 90]
-# ↑ 10 broad candidates spanning ~2 weeks to ~3 months. Filtered downstream
-#   to drop any cadence where R2's natural training rate < 500 grid-MWh/day.
+INITIAL_CADENCES = [10, 15, 20, 25, 30, 45, 60, 75, 90, 120, 150, 180]
+# ↑ 12 broad candidates spanning ~2 weeks to ~6 months. Filter applies in
+#   both directions:
+#     - Lower bound: cadence ≥ ~22 d so later releases (R5-R7) fit in the
+#       4,800 grid-MWh/day grid-capacity envelope. Drops 10, 15, 20.
+#     - Upper bound: cadence ≤ ~94 d so R2's natural training rate
+#       (47K grid-MWh / cadence days) clears the 500 MWh/day RFP floor —
+#       beyond that the LP would have to pad with floor-mandated training.
+#       Drops 120, 150, 180.
+#   Net of both: 25, 30, 45, 60, 75, 90 should pass.
 
 def stage1_schedules(scheme: str, include_no_training: bool = False
                      ) -> tuple[list[A.TrainingSchedule], list[int]]:
