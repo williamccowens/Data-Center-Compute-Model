@@ -1,4 +1,4 @@
-// Generates "Final Project Report.docx" — fills out the planning sections
+// Generates "Final Project Current Status Report.docx" — fills out the planning sections
 // (Training+Inference, Inference, Conversion, Power, Model Dynamic) with
 // concrete descriptions of what's actually implemented in code. Leaves
 // the class-report skeleton (Executive Summary, Model Setup, etc.) blank
@@ -352,6 +352,102 @@ const content = [
     [1300, 3000, 5060],
   ),
 
+  // ── OUTSTANDING WORK ──────────────────────────────────────────────
+  H1("Outstanding Work: Parameters and Assumptions to Finalize"),
+  P("Items below are open questions whose resolution will sharpen the model. Each is wired into the code with a sensible default so the current results are usable, but the defaults should be revisited once authoritative numbers are available."),
+
+  H2("Hardware throughput (FLOPS → MWh conversion)"),
+  BULLET_R(
+    { text: "H-100 SXM sustained throughput", bold: true },
+    " — currently 500 TF/s (≈ 50 % of FP8-dense theoretical 989 TF/s). Need an authoritative sustained-FP8 number for our intended training workload (mix of attention, MLP, comms overhead).",
+  ),
+  BULLET_R(
+    { text: "H-100 PCIe sustained throughput", bold: true },
+    " — currently 380 TF/s (≈ 50 % of FP8-dense 756 TF/s). Same caveat as SXM.",
+  ),
+  BULLET_R(
+    { text: "SXM vs PCIe split", bold: true },
+    " — currently 60 / 40. Drives the aggregate FLOPS_PER_COMPUTE_MWH; today it is collapsed into a single number. Once the split is set, we can also split the LP's `train` variable per hardware class (SXM preferred for training, PCIe biased to inference).",
+  ),
+  BULLET_R(
+    { text: "PUE", bold: true },
+    " — currently 1.25, applied uniformly. Hyperscale data centers run 1.10–1.40 depending on cooling, climate, and load factor; a Houston-vs-West Texas differential is plausible.",
+  ),
+
+  H2("Inference revenue model"),
+  BULLET_R(
+    { text: "Token-price projection", bold: true },
+    " — currently $30/MM input + $180/MM output blended via the RFP-stated 2/3 + 1/3 mix to $80/MM. This is the spot benchlm.ai rate for GPT-5.4Pro; need a forward-looking curve, not a single number, to better match the 6-month horizon.",
+  ),
+  BULLET_R(
+    { text: "Token-price decay halflife", bold: true },
+    " — currently 60 days, with sensitivity at 30/45/60/90/120 days in `halflife_sensitivity.py`. The 60-day default is supported by 2024–2025 frontier-tier price observations but is a strong driver of optimal cadence; a defensible point-estimate (or distribution) is needed.",
+  ),
+  BULLET_R(
+    { text: "Tokens per request", bold: true },
+    " — not currently in the model. The RFP requests it; we use a per-MWh tokens conversion instead. Adding it would let us express revenue at the request level (price × requests/hr) rather than the MWh level.",
+  ),
+  BULLET_R(
+    { text: "Per-release quality multiplier", bold: true },
+    " — currently `doc_blended` with uplift_factor = 1.5 (i.e., each release is 1.5× more valuable per token than the previous one before market decay). Plausible but not measured.",
+  ),
+
+  H2("Tolling contract"),
+  BULLET_R(
+    { text: "TOLL_MAX_MWH_PER_DAY", bold: true },
+    " — RFP mentions a daily MWh cap on Houston tolling but doesn't specify the value. Currently `None` (no daily cap). Tighter caps would lower realized toll value.",
+  ),
+  BULLET_R(
+    { text: "Fixed surcharge / capacity payment", bold: true },
+    " — currently $0/MWh on the variable side and no annual fixed payment. Real tolling contracts typically include both. A non-zero fixed surcharge would change Phase C's decision about whether to sign the contract at all.",
+  ),
+  BULLET_R(
+    { text: "Heat rate", bold: true },
+    " — currently 9,500 BTU/kWh per the RFP. This is consistent with an efficient simple-cycle peaker; assumed firm.",
+  ),
+
+  H2("BESS contract"),
+  BULLET_R(
+    { text: "Lease structure", bold: true },
+    " — currently $60 M capex amortized over 15 yr + $2 M opex/yr, half-year prorate ⇒ $3 M / site / 6 months. Need confirmation that this is the actual tolling-style lease structure for the prescribed BESS rather than an outright-buy amortization.",
+  ),
+  BULLET_R(
+    { text: "Round-trip efficiency", bold: true },
+    " — currently 92 % (√ on each leg ≈ 0.959). RFP-stated; assumed firm.",
+  ),
+  BULLET_R(
+    { text: "Degradation", bold: true },
+    " — not currently modelled (6-month horizon is short enough that this is plausibly second-order, but should be noted).",
+  ),
+
+  H2("Power-price input"),
+  BULLET_R(
+    { text: "DAM vs RT LMP", bold: true },
+    " — RFP requests RT-LMP; we use DAM as the closest available proxy (the project repo's CSVs are DAM). RT is typically more volatile, which would slightly increase the value of both tolling (option-like) and BESS arbitrage.",
+  ),
+  BULLET_R(
+    { text: "Forward-curve drift", bold: true },
+    " — MC paths are simulated from OU calibrated on 2025 actuals (with deterministic baseline = 2025 hourly DAM shifted +1 year). No structural drift / forward-curve adjustment for fuel-price changes 2025 → 2026. If gas or load forecasts indicate meaningful drift, an additive shift or recalibrated long-run mean would tighten the estimate.",
+  ),
+  BULLET_R(
+    { text: "Number of MC paths", bold: true },
+    " — currently default 50 for production runs. 200+ would tighten confidence intervals on procurement decisions where the gap is small (Phase-C gaps are ~$5 M while paths-stdev is ~$30 M).",
+  ),
+
+  H2("Constraints from the RFP not yet modelled"),
+  BULLET_R(
+    { text: "Wind-solar intermittency / MIHR", bold: true },
+    " — the RFP asks for a substantive discussion citing ERCOT data; the LP currently treats grid power as always available at LMP, with no capacity-factor reduction. Could be added either as a stochastic capacity_factor[h] or by penalizing high-LMP hours that correlate with low renewable output.",
+  ),
+  BULLET_R(
+    { text: "Unscheduled-outage scenarios", bold: true },
+    " — RFP prescribes specific outage contingencies. Currently not modelled; would enter as a forced reduction in g_lmp + g_toll capacity over an outage window.",
+  ),
+  BULLET_R(
+    { text: "Capacity factor", bold: true },
+    " — currently 1.0 uniformly. Could be derated for transmission constraints, weather, planned maintenance.",
+  ),
+
   // ── REPORT skeleton (left blank; user will fill in) ──────────────
   H1("Report"),
   P("(Sections below to be written; planning sections above describe the model setup and serve as input.)"),
@@ -409,7 +505,7 @@ const doc = new Document({
 });
 
 Packer.toBuffer(doc).then(buffer => {
-  const out = path.join(ROOT, "Final Project Report.docx");
+  const out = path.join(ROOT, "Final Project Current Status Report.docx");
   fs.writeFileSync(out, buffer);
   console.log("Wrote", out, `(${buffer.length} bytes)`);
 });
