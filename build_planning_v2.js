@@ -112,7 +112,7 @@ const content = [
   P("Parameter counts in notable AI systems have grown exponentially. We fit a log-linear regression of log10(params) on Excel-serial date using the Epoch AI \"Parameters in notable artificial intelligence systems\" dataset with a post-2020 filter. The post-2020 cut produces a steeper, more recent trend that better matches frontier model sizes; the post-2010 alternative is documented in the code (`fit_growth_curves.py`) for comparison."),
   P("Post-2020 fit (n = 395 observations, R² ≈ 0.30):"),
   PR({ text: "log10(params) = −49.6585 + 1.32043 × 10⁻³ · day_serial", italics: true }),
-  P("That gives a parameter-count doubling time of ~228 days. We then apply a 5× competitiveness multiplier (planning-doc convention) so projections track 2026 frontier-class models (DeepSeek 1.6T, GPT-class 1.7T, etc.) rather than the dataset-wide average. The CSV is dated 2023, so the 5× bridges 2023 → 2026 frontier."),
+  P("That gives a parameter-count doubling time of ~228 days. We then apply a 5× competitiveness multiplier (planning-doc convention) so projections track 2026 frontier-class models (DeepSeek 1.6T, GPT-class 1.7T, etc.) rather than the dataset-wide average — the regression line captures the average researcher, including small academic releases that drag the trend down, while we have to compete at frontier scale."),
   P("Projected post-multiplier parameter counts at planning-doc reference dates:"),
   buildTable(
     ["Release", "Training start", "Params (post-5×)", "Pre-multiplier"],

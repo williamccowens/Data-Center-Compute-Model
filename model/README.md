@@ -366,8 +366,10 @@ without changing any model code:
 | Distinct training vs inference sustained TF/s | Currently a single rate per GPU type | Add separate constants and route to `flops_per_compute_mwh` (for training) and inference accounting (for inference) once distinguished |
 
 The 5× param competitiveness multiplier (`PARAM_COMPETITIVENESS_MULTIPLIER = 5.0`)
-is the planning doc's spec — Epoch AI data ends ~2023 and we're targeting
-2026 frontier-class competitors. Configurable but defaults to the doc's value.
+is the planning doc's spec — the regression line tracks the average researcher
+(small academic releases pull it down), while we have to compete at frontier
+scale. The 5× lifts the trend to the frontier. Configurable but defaults to
+the doc's value.
 
 ## Reproducing
 

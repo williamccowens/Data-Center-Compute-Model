@@ -256,12 +256,11 @@ EXCEL_EPOCH = date(1899, 12, 30)
 def excel_serial(d: date) -> int:
     return (d - EXCEL_EPOCH).days
 
-# Planning doc: "we will use a 5× multiplier on our model" — the Epoch AI
-# dataset cuts off at ~2023, but we're targeting 2026 frontier-class
-# competitors (DeepSeek 1.6T, Xiaomi 1.02T, ChatGPT-4 1.7T+). The 5×
-# multiplier bridges the gap between the regression line (which captures
-# the average researcher, including all the small academic releases that
-# pull the trend down) and the actual frontier where we have to compete.
+# Planning doc: "we will use a 5× multiplier on our model" — the regression
+# line captures the average researcher (small academic releases pull the
+# trend down), while we have to compete at frontier scale (DeepSeek 1.6T,
+# Xiaomi 1.02T, ChatGPT-4 1.7T+). The 5× multiplier lifts the trend to the
+# frontier.
 PARAM_COMPETITIVENESS_MULTIPLIER = 5.0
 
 

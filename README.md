@@ -454,7 +454,7 @@ Minimum-feasible cadence by release date (100% compute training, no inference):
 
 | Choice | Default | Rationale |
 |---|---|---|
-| `PARAM_COMPETITIVENESS_MULTIPLIER` | 5× | Planning doc: bridge Epoch AI data (cutoff ~2023) → 2026 frontier-class models |
+| `PARAM_COMPETITIVENESS_MULTIPLIER` | 5× | Planning doc convention: lifts the fitted regression line (average researcher, dragged down by small academic releases) up to the frontier-class scale we actually have to compete at |
 | `PUE` | 1.25 | RFP-fixed |
 | `BESS_POWER_MW` / `BESS_ENERGY_MWH` | 40 / 160 | RFP-fixed |
 | `BESS_ROUND_TRIP_EFF` | 0.92 | RFP-fixed |
