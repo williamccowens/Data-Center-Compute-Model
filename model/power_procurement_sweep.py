@@ -56,6 +56,7 @@ from data import OUT_DIR
 import assumptions as A
 from monte_carlo import calibrate_and_simulate, path_to_lp_inputs
 from optimize import solve_across_paths, average_breakdowns
+from tbx_swap import evaluate_swap, evaluate_x_sweep, DEFAULT_X, DEFAULT_FREQ
 
 
 def main():
@@ -193,11 +194,65 @@ def main():
         net = r["rev_bess_$M"] - r["bess_ch_$M"] - r["bess_lease_$M"]
         print(f"  {r['scenario']:<25}  ${net:+,.2f}M")
 
+    # ── Virtual BESS (TBx swap) valuation, side-by-side with physical ─────
+    # The physical BESS in the LP above is co-optimized with perfect-foresight
+    # dispatch; the virtual TBx swap mechanically captures Σtop-x − Σbottom-x
+    # daily, scaled by RTE. The TBx leg uses the SAME MC price paths so the
+    # two are directly comparable.
+    print()
+    print("=" * 90)
+    print(f"VIRTUAL TBx SWAP — same {args.mc} paths, x={DEFAULT_X}, "
+          f"daily settlement")
+    print("=" * 90)
+    tbx_primary = evaluate_swap(prices_list, x=DEFAULT_X, freq=DEFAULT_FREQ)
+    print(tbx_primary[["site", "floating_mean_$M", "floating_std_$M",
+                       "floating_p05_$M", "floating_p95_$M",
+                       "breakeven_fixed_$M", "net_at_physical_$M"]]
+          .to_string(index=False, float_format=lambda v: f"{v:+,.2f}"))
+
+    tbx_sweep = evaluate_x_sweep(prices_list, x_values=(1, 2, 4, 8))
+    print()
+    print("TBx sensitivity to x (mean floating $M per site, RTE-adjusted):")
+    print(tbx_sweep.pivot_table(index="site", columns="x",
+                                values="floating_mean_$M")
+                    .to_string(float_format=lambda v: f"{v:+,.2f}"))
+
+    # ── Physical vs virtual head-to-head ──────────────────────────────────
+    print()
+    print("=" * 90)
+    print("PHYSICAL (LP-dispatched) vs VIRTUAL (TBx swap) BESS — per site, $M")
+    print("=" * 90)
+    # Physical "BESS net" per site comes from the BESS-both scenario rows
+    # minus their tolling-matched baseline. We use the simplest read:
+    # physical_net = rev_bess − bess_ch − bess_lease (averaged across paths).
+    bess_both = df[df["scenario"] == "LMP + BESS both"].iloc[0]
+    phys_per_site_net = (bess_both["rev_bess_$M"]
+                         - bess_both["bess_ch_$M"]
+                         - bess_both["bess_lease_$M"]) / 2.0  # both sites
+    compare_rows = []
+    for _, r in tbx_primary.iterrows():
+        compare_rows.append({
+            "site":                 r["site"],
+            "physical_net_$M":      phys_per_site_net,
+            "virtual_floating_$M":  r["floating_mean_$M"],
+            "virtual_breakeven_$M": r["breakeven_fixed_$M"],
+            "virtual_net_@$3M_$M":  r["net_at_physical_$M"],
+            "phys_minus_virt_$M":   phys_per_site_net - r["net_at_physical_$M"],
+        })
+    compare_df = pd.DataFrame(compare_rows)
+    print(compare_df.to_string(index=False,
+                               float_format=lambda v: f"{v:+,.2f}"))
+    print("  physical_net = avg per-site (rev_bess − bess_ch − lease) from LP")
+    print("  virtual_net_@$3M = E[floating] − $3M lease (apples-to-apples)")
+
     out_path = OUT_DIR / f"power_procurement_mc_n{args.mc}_{args.scheme}_c{args.cadence}.csv"
     df.to_csv(out_path, index=False)
     delta_df.to_csv(OUT_DIR / f"power_procurement_deltas_n{args.mc}_{args.scheme}.csv",
                     index=False)
-    print(f"\nSaved → {out_path.name} (+ deltas CSV)")
+    tbx_primary.to_csv(OUT_DIR / f"tbx_swap_primary_n{args.mc}.csv", index=False)
+    tbx_sweep.to_csv(OUT_DIR / f"tbx_swap_xsweep_n{args.mc}.csv", index=False)
+    compare_df.to_csv(OUT_DIR / f"phys_vs_virt_bess_n{args.mc}.csv", index=False)
+    print(f"\nSaved → {out_path.name} (+ deltas, TBx, phys-vs-virt CSVs)")
 
 
 if __name__ == "__main__":

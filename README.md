@@ -358,14 +358,16 @@ its workload.
 
 ### Revenue / token-price model
 
+The token-price source and revenue mix are RFP-firm: GPT-5.4Pro daily prices
+on benchlm.ai, blended 2/3 input + 1/3 output. The 5T tokens/day at 80 MW
+implies `TOKENS_PER_COMPUTE_MWH ≈ 2.604e9`, also RFP-firm. The remaining
+TBDs are how prices evolve through the 6-month horizon:
+
 | Parameter | Placeholder | Notes |
 |---|---|---|
-| `TOKEN_PRICE_INPUT_PER_MM` | $30 (GPT-5.4Pro frontier peak) | RFP-specified source |
-| `TOKEN_PRICE_OUTPUT_PER_MM` | $180 (GPT-5.4Pro frontier peak) | RFP-specified source |
-| Per-release token multiplier | 4 schemes: `constant`, `quality_uplift`, `market_decay`, `doc_blended` | The exact "token cost schedule per release" is TBD; the schemes are placeholders for what the project team will finalize |
-| `TOKEN_PRICE_HALFLIFE_DAYS` | 60 days | Planning doc said "halving every couple of months" — could be 30–120 days, see `halflife_sensitivity.py` |
-| Tokens / request | (abstracted into `TOKENS_PER_COMPUTE_MWH`) | RFP gave 5T tokens/day at full 80 MW; tokens-per-request × requests-per-hour was never separately specified |
-| Request-rate distribution | (assumed unlimited demand, per RFP) | RFP says "inference tasks arrive randomly in clusters and can be incurred such that demand always equals or exceeds available capacity" |
+| Per-release token multiplier | 4 schemes: `constant`, `quality_uplift`, `market_decay`, `doc_blended` | RFP silent on per-release pricing; the schemes are placeholders the project team will finalize. |
+| `TOKEN_PRICE_HALFLIFE_DAYS` | 60 days | Planning-doc concept ("halving every couple of months"); RFP silent. Could be 30–120 days, see `halflife_sensitivity.py`. |
+| Tokens per request | (abstracted into `TOKENS_PER_COMPUTE_MWH`) | The RFP's infinite-demand assumption ("demand always equals or exceeds available capacity") makes this unnecessary today. Would become useful as a **future extension** if we replaced infinite demand with a stochastic Poisson request-arrival process — then revenue would be (price × accepted requests) and tokens/request would set the per-request compute load. |
 
 The four built-in multiplier schemes give the project team a starting
 point. To override per-release with explicit prices, set
@@ -400,23 +402,29 @@ from the relevant row of `fit_growth_curves.py` output.
 
 ### Tolling parameters
 
-The RFP describes tolling at Houston with several knobs:
+Heat rate (9,500 BTU/kWh) and the $3/MMBtu Henry-Hub premium that covers
+variable O&M are RFP-firm — no additional fixed $/MWh surcharge is
+contemplated in the RFP. The only knob the RFP leaves open is the daily
+MWh cap on the contract:
 
 | Parameter | Default | Notes |
 |---|---|---|
-| `TOLL_MAX_MW` | 100 (= site grid cap) | Hourly cap on toll draw |
-| `TOLL_FIXED_SURCHARGE_PER_MWH` | $0 | Fixed-surcharge component above HH+$3/MMBtu O&M; RFP didn't specify |
 | **`TOLL_MAX_MWH_PER_DAY`** | **`None` ⚠️ TBD** | RFP-flagged "pre-specified maximum MW-hours of power available throughout each corresponding generation day." Not numerically specified in RFP. Set to a number to enforce a daily MWh cap on Houston toll; leave `None` for unconstrained (current behavior). |
 
-When `TOLL_MAX_MWH_PER_DAY` is set, the LP adds `Σ g_toll[h, HOUSTON] over each day ≤ TOLL_MAX_MWH_PER_DAY`. Otherwise the only toll cap is the hourly `TOLL_MAX_MW` × 24 = 2,400 MWh/day implicit upper bound.
+When `TOLL_MAX_MWH_PER_DAY` is set, the LP adds `Σ g_toll[h, HOUSTON] over each day ≤ TOLL_MAX_MWH_PER_DAY`. Otherwise the only toll cap is the hourly `TOLL_MAX_MW = 100` × 24 = 2,400 MWh/day implicit upper bound.
 
 ### BESS contract
 
-40 MW / 160 MWh / 92 % RTE are RFP-fixed and assumed firm. Open items concern the lease structure and depreciation:
+40 MW / 160 MWh / 92 % RTE, $60M capex, $2M/yr opex, and 15-yr lifetime
+are all RFP-firm. The model values **both** the physical and virtual
+forms of the BESS toll on the same MC price paths
+(`model/tbx_swap.py`): physical via LP dispatch, virtual via the TBx
+capture-spread formula. The only genuine open items are:
 
 | Parameter | Default | Notes |
 |---|---|---|
-| BESS lease structure | $60M capex / 15 yr / 2 + $2M opex/yr / 2 = $3M / site / 6 months | ⚠ Confirm this matches the actual tolling-style lease structure for the prescribed BESS rather than an outright-buy amortization. Drives whether Phase C ever picks BESS at the locked cadence (currently it doesn't). |
+| 6-month lease amortization method | Straight-line: `$60M / 15yr / 2 + $2M/yr / 2 = $3M / site` | RFP gives capex, opex, and lifetime but doesn't dictate the amortization. Discounted-annuity at an explicit cost of capital would give a different fixed leg; the current straight-line value is what we benchmark the TBx breakeven against. |
+| TBx swap `x` (top/bottom rank) | 4 (duration-matched to 40 MW × 4 h) | RFP defines TBx for general `x`; the contract-specific choice is open. Model reports x ∈ {1, 2, 4, 8} as sensitivity. |
 | Degradation | Not modelled | 6-month horizon is short, plausibly second-order. Could be added as a linear capacity fade if longer horizons are evaluated. |
 
 ### Compute capacity (FLOPS vs MWh equivalence)
@@ -448,7 +456,7 @@ Minimum-feasible cadence by release date (100% compute training, no inference):
 |---|---|---|
 | **Uri-style outage stress** | **Ported (optional)** | `model/stress.py` + `--stress {none\|mild\|moderate\|uri_full}` on the headline driver. Default `none`. Toggle on to inject FTG phase-4 spike windows into the MC paths before optimizing. |
 | Wind-solar intermittency / MIHR (qualitative) | To report | Phase 4 in the FTG repo computes LMP-implied intermittency signatures (diurnal percentile profile, evening-ramp premium, negative-LMP frequency at HB_WEST). Analysis logic exists; not currently a module in our codebase — include the diagnostics in the final report. |
-| Capacity-factor derate (true MIHR-style) | Not implemented | LP currently assumes `capacity_factor = 1.0`. A direct MIHR model would multiply the per-site grid cap by a stochastic `capacity_factor[h] ≤ 1` driven by renewables + transmission. Distinct from the LMP-signature view above. |
+| Capacity-factor derate (true MIHR-style) | Not implemented; beyond RFP scope | LP currently assumes `capacity_factor = 1.0`. A direct MIHR-style model would multiply the per-site grid cap by a stochastic `capacity_factor[h] ≤ 1` driven by renewables + transmission. The RFP asks to *describe* intermittency, not to model it as a stochastic capacity cap, so this is a beyond-scope extension rather than an outstanding deliverable. |
 
 ### Methodology choices (defensible defaults, configurable)
 
