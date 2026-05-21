@@ -16,7 +16,7 @@ The top-level [README.md](../README.md) has the full phase ordering. Briefly:
 | `assumptions.py` | Every numeric input + Scenario flags + schedule generators + date→params→FLOPS→cMWh projection chain + cadence filter |
 | `data.py` | Price-panel loaders (`load_price_panel` proxy + `load_historical_panel` for OU calibration), DST-corrected |
 | `calibration.py` | Seasonal log-OU fit (ported from `ltemry/FTG-Final-Project`) |
-| `monte_carlo.py` | `simulate_paths` path generator + `calibrate_and_simulate` one-stop helper + `path_to_lp_inputs` LP adapter |
+| `monte_carlo.py` | `simulate_paths` path generator + `calibrate_and_simulate` one-stop helper + `path_to_lp_inputs` LP adapter + `apply_drift` for forward-curve drift |
 
 **Phase 1 — Pre-flight:**
 
@@ -127,8 +127,11 @@ Tolling is a **period-long binary commitment with hourly optionality**:
   when you want to; there's no obligation to take a fixed quantity.
 - Hourly cap: `TOLL_MAX_MW = 100` MWh/hr (= site capacity). The RFP
   describes a "pre-specified maximum MW-hours per generation day" — a
-  daily cap — which we don't currently enforce (no cap value specified).
-  Add a `daily_toll_cap` constraint to `optimize.py` if needed.
+  daily cap whose numeric value the RFP doesn't pin down. `Scenario.toll_max_mwh_per_day`
+  enforces it; `assumptions.py` exposes EIA-anchored brackets
+  `TOLL_DAILY_CAP_PEAKER = 720` (30% CF), `_INTERMEDIATE = 1500` (~63%,
+  recommended default), `_NEAR_NAMEPLATE = 2280` (95% availability).
+  `--toll-cap-sweep` on `power_procurement_sweep.py` runs all four.
 - West Texas has no tolling option (RFP — no nat-gas plant available).
 
 ### Why tolling adds value (+$1.1M)

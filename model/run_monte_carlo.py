@@ -40,16 +40,36 @@ def main():
     parser.add_argument("--bess", action="store_true", default=False,
                         help="enable BESS at both sites")
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--gas-drift-pct", type=float, default=0.0,
+                        help="Forward-curve drift on Henry Hub (e.g. 0.05 = "
+                             "+5%% level shift in HH long-run mean). Anchored "
+                             "via Brent→HH elasticity ≈ 0.2 for a geopolitical "
+                             "oil shock; see README forward-curve drift section.")
+    parser.add_argument("--power-drift-pct", type=float, default=0.0,
+                        help="Forward-curve drift on ERCOT LMP (applied to "
+                             "both HB_HOUSTON and HB_WEST). Anchored via "
+                             "HH→LMP elasticity ≈ 0.5.")
+    parser.add_argument("--toll-cap", type=float, default=None,
+                        help="Toll daily MWh cap (Houston). Empirical "
+                             "brackets: 720=peaker, 1500=intermediate, "
+                             "2280=near-nameplate. Default: no cap.")
     args = parser.parse_args()
 
     print(f"=== Monte Carlo profit run ===")
     print(f"  n_paths={args.n_paths}, cadence={args.cadence}d, "
           f"scheme={args.scheme}, toll={args.toll}, bess={args.bess}")
+    if args.gas_drift_pct or args.power_drift_pct:
+        print(f"  forward-curve drift: gas {args.gas_drift_pct:+.1%}, "
+              f"power {args.power_drift_pct:+.1%}")
+    if args.toll_cap is not None:
+        print(f"  toll daily cap: {args.toll_cap:.0f} MWh/day")
 
     print("\n[1-3/4] Calibrating + simulating "
           f"{args.n_paths} paths via monte_carlo.calibrate_and_simulate() ...")
     t0 = time.time()
-    model, sim = calibrate_and_simulate(n_paths=args.n_paths, seed=args.seed)
+    model, sim = calibrate_and_simulate(n_paths=args.n_paths, seed=args.seed,
+                                         gas_drift_pct=args.gas_drift_pct,
+                                         power_drift_pct=args.power_drift_pct)
     print(f"  done in {time.time()-t0:.1f}s, sim shape={sim.paths.shape}")
     print(model.summary().to_string(index=False))
     print(f"  innovation correlation:")
@@ -59,7 +79,8 @@ def main():
           f"scheme={args.scheme}) ...")
     schedule = A.equal_cadence_schedule(args.cadence,
                                         token_multiplier_scheme=args.scheme)
-    scenario = A.Scenario(use_houston_tolling=args.toll, use_bess=args.bess)
+    scenario = A.Scenario(use_houston_tolling=args.toll, use_bess=args.bess,
+                          toll_max_mwh_per_day=args.toll_cap)
 
     profits = []
     t0 = time.time()

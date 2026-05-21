@@ -76,10 +76,10 @@ These inputs use defaults documented in `README.md` § "Parameters still TBD / a
 | SXM/PCIe fleet split | 60/40 | RFP doesn't specify |
 | Token-price decay halflife | 60 days | Planning-doc concept; RFP silent. Strong driver of optimal cadence (`halflife_sensitivity.py`) |
 | Per-release token multiplier | `doc_blended`, uplift 1.5× | Planning-doc convention; RFP silent on per-release pricing |
-| `TOLL_MAX_MWH_PER_DAY` | `None` (unconstrained) | RFP mentions a daily MWh cap but doesn't give the value |
+| `Scenario.toll_max_mwh_per_day` | `None` (unconstrained) for this run | EIA-anchored brackets now exposed in `assumptions.py`: `TOLL_DAILY_CAP_PEAKER=720`, `_INTERMEDIATE=1500`, `_NEAR_NAMEPLATE=2280`. Run `power_procurement_sweep.py --toll-cap-sweep` to compare. |
 | BESS lease amortization | Straight-line: $60M/15yr/2 + $2M/yr/2 = $3M/site/6mo | RFP gives capex/opex/life; doesn't dictate the amortization method |
 | LMP series | DAM (2025 actuals as proxy) | RFP requests RT-LMP; only DAM available in repo. RT is more volatile → would slightly increase toll & BESS arb value |
-| Forward-curve drift | None | OU calibrated on 2025 actuals; no structural 2025 → 2026 drift adjustment |
+| Forward-curve drift | 0 % both gas & power | `--gas-drift-pct` / `--power-drift-pct` CLI flags now wire into `monte_carlo.apply_drift()`. Baseline 0 matches EIA May-2026 STEO (HH 2026 = $3.50/MMBtu vs 2025 actual $3.53). Geopolitical-shock overlay: +30 % Brent ⇒ `--gas-drift-pct 0.06 --power-drift-pct 0.03` via Brent→HH (0.2) and HH→LMP (0.5) elasticities. |
 
 **RFP-firm in this run:**
 - 90,000 H-100 / 80 MW compute / 100 MW grid per site

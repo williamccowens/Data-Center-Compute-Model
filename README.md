@@ -397,7 +397,7 @@ from the relevant row of `fit_growth_curves.py` output.
 | Item | Default | Notes |
 |---|---|---|
 | DAM vs RT-LMP | DAM (only source available) | RFP requests RT-LMP; we use DAM as the closest available proxy. RT is typically more volatile ⇒ would slightly increase value of tolling and BESS arbitrage. |
-| Forward-curve drift | None | MC paths are simulated from OU calibrated on 2025 actuals (deterministic baseline = 2025 DAM shifted +1 yr). No structural drift / forward-curve adjustment for 2025 → 2026 fuel / load changes. An additive shift or recalibrated long-run mean would tighten the estimate if gas or load forecasts indicate meaningful drift. |
+| Forward-curve drift | None (`--gas-drift-pct 0 --power-drift-pct 0`) | OU calibrated on 2025 actuals. The drift kwargs in `monte_carlo.apply_drift()` add an additive shift to the long-run log-mean of each series, so a +5 % HH bump corresponds to `gas_drift_pct=0.05`. Empirical anchors for the 2026 horizon: EIA May-2026 STEO publishes HH 2026 = $3.50/MMBtu (vs 2025 actual $3.53 — essentially flat baseline). Geopolitical stress overlay: a +30 % Brent shock pushes HH up via the LNG-export channel (elasticity ≈ 0.2) and ERCOT LMP up via gas-on-margin pass-through (HH→LMP elasticity ≈ 0.5), giving ≈ `--gas-drift-pct 0.06 --power-drift-pct 0.03`. See EIA STEO commentary for full derivation. |
 | MC path count | 50 (default) | Tight enough for cadence ranking (cadence gaps are billions; path-stdev is millions). **Procurement decisions are noisier** — Phase C gaps are ~$5M while path-stdev is ~$30M, so 200+ paths recommended when you need to defend a specific Phase C winner. |
 
 ### Tolling parameters
@@ -405,13 +405,21 @@ from the relevant row of `fit_growth_curves.py` output.
 Heat rate (9,500 BTU/kWh) and the $3/MMBtu Henry-Hub premium that covers
 variable O&M are RFP-firm — no additional fixed $/MWh surcharge is
 contemplated in the RFP. The only knob the RFP leaves open is the daily
-MWh cap on the contract:
+MWh cap on the contract.
 
-| Parameter | Default | Notes |
-|---|---|---|
-| **`TOLL_MAX_MWH_PER_DAY`** | **`None` ⚠️ TBD** | RFP-flagged "pre-specified maximum MW-hours of power available throughout each corresponding generation day." Not numerically specified in RFP. Set to a number to enforce a daily MWh cap on Houston toll; leave `None` for unconstrained (current behavior). |
+The cap is exposed as `Scenario.toll_max_mwh_per_day` (CLI flag
+`--toll-cap`) and `assumptions.py` exports three empirically-anchored
+brackets:
 
-When `TOLL_MAX_MWH_PER_DAY` is set, the LP adds `Σ g_toll[h, HOUSTON] over each day ≤ TOLL_MAX_MWH_PER_DAY`. Otherwise the only toll cap is the hourly `TOLL_MAX_MW = 100` × 24 = 2,400 MWh/day implicit upper bound.
+| Bracket | Constant | MWh/day | Anchor |
+|---|---|---|---|
+| Peaker | `TOLL_DAILY_CAP_PEAKER` | 720 | 30 % of nameplate × 24 h. Matches historical US SCGT capacity factors (EIA: 9.6–14.1 % annual avg 2017–2023, ~17 % summer / ~10 % off-season). |
+| Intermediate | `TOLL_DAILY_CAP_INTERMEDIATE` | 1,500 | ~63 % of nameplate × 24 h. Load-following toll typical of public IPP disclosures (Calpine / Vistra / NRG 10-Ks). **Recommended headline default.** |
+| Near-nameplate | `TOLL_DAILY_CAP_NEAR_NAMEPLATE` | 2,280 | 95 % of nameplate × 24 h (availability/outage haircut only). Equivalent to today's unconstrained behaviour (`None`, ⇒ implicit hourly cap × 24 = 2,400). |
+
+When `scenario.toll_max_mwh_per_day` is set, the LP adds `Σ g_toll[h, HOUSTON] per day ≤ toll_max_mwh_per_day`. `None` (default) means only the hourly `TOLL_MAX_MW = 100` × capacity_factor binds.
+
+Run `python model/power_procurement_sweep.py --toll-cap-sweep` to sweep the four brackets and report the marginal $ value of toll as a function of the daily cap.
 
 ### BESS contract
 

@@ -108,13 +108,39 @@ TOLL_HEAT_RATE_MMBTU_PER_MWH = TOLL_HEAT_RATE_BTU_PER_KWH * 1000.0 / 1e6  # 9.5
 TOLL_VOM_PER_MMBTU         = 3.0              # RFP: $3/MMBTU premium above HH
 TOLL_MAX_MW                = 100.0            # ASSUMPTION: toll covers full 100 MW site capacity
 TOLL_FIXED_SURCHARGE_PER_MWH = 0.0            # ASSUMPTION: fixed toll fee not specified in RFP
+
 # ── Tolling daily cap (RFP-flagged, value TBD) ────────────────────────────
 # The RFP describes tolling as "a pre-specified maximum MW-hours of power
 # available throughout each corresponding generation day" — i.e. a DAILY
-# MWh cap on toll. The cap value is not given numerically in the RFP and
-# is currently TBD. Set to None = no daily cap (only the hourly TOLL_MAX_MW
-# applies). Set to a number (e.g. 1500.0 or 2400.0) to enforce.
-TOLL_MAX_MWH_PER_DAY: float | None = None     # ⚠️ TBD pending RFP / contract spec
+# MWh cap on toll. The cap value is not given numerically in the RFP, so
+# we anchor to historical SCGT operating data and three contract-style
+# brackets (set via Scenario.toll_max_mwh_per_day):
+#
+#   PEAKER          720 MWh/day   30% of nameplate × 24h
+#                                 Anchors to historical ERCOT/national SCGT
+#                                 capacity factors: EIA reports 9.6–14.1%
+#                                 annual avg 2017–2023, ~17% summer / ~10%
+#                                 off-season. A peaker-style toll caps the
+#                                 offtaker to roughly that envelope plus a
+#                                 cushion for peak-spread days.
+#                                 Source: EIA Today in Energy id=55680.
+#
+#   INTERMEDIATE   1500 MWh/day   ~63% of nameplate × 24h
+#                                 Mid-bracket; matches "load-following"
+#                                 tolling arrangements typical of public
+#                                 IPP disclosures (Calpine/Vistra/NRG 10-Ks).
+#                                 Recommended headline default.
+#
+#   NEAR_NAMEPLATE 2280 MWh/day   95% of nameplate × 24h
+#                                 Only an availability/outage haircut.
+#                                 Equivalent to today's "no daily cap"
+#                                 behavior (TOLL_MAX_MW × 24 = 2,400).
+#
+# None = unconstrained (only the hourly TOLL_MAX_MW × capacity_factor
+# applies). Use any positive float for an explicit cap.
+TOLL_DAILY_CAP_PEAKER         =  720.0
+TOLL_DAILY_CAP_INTERMEDIATE   = 1500.0
+TOLL_DAILY_CAP_NEAR_NAMEPLATE = 2280.0
 
 def tolling_cost_per_mwh(henry_hub_price: float) -> float:
     """Convert a daily Henry Hub price ($/MMBtu) → all-in toll cost in $/MWh."""
@@ -532,6 +558,11 @@ class Scenario:
     # exceed this rate, so the constraint is non-binding for valid cadences
     # but enforces compliance for edge cases (e.g., no_training schedule).
     training_min_mwh_per_day:  float = 500.0
+    # Optional toll daily-MWh cap (Houston only). None = no cap (only the
+    # hourly TOLL_MAX_MW × capacity_factor binds, ⇒ implicit 2,400 MWh/day).
+    # See the TOLL_DAILY_CAP_* constants above for empirically-anchored
+    # brackets (PEAKER / INTERMEDIATE / NEAR_NAMEPLATE).
+    toll_max_mwh_per_day: float | None = None
 
     def inference_rev_per_grid_mwh(self) -> float:
         blended = (

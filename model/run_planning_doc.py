@@ -217,7 +217,8 @@ def phase_b_report(winner_cad: int,
 # ──────────────────────────────────────────────────────────────────────
 
 def phase_c_procurement_optimization(winner_cad, prices_list, gas_list,
-                                     scheme, n_paths):
+                                     scheme, n_paths,
+                                     toll_max_mwh_per_day: float | None = None):
     """At the cadence locked by Phase A, sweep the 8 procurement options
     (toll on/off × BESS placement {none, Houston, West, both}) including
     BESS lease fixed costs. Pick the procurement combo with highest mean
@@ -239,7 +240,8 @@ def phase_c_procurement_optimization(winner_cad, prices_list, gas_list,
         sch = A.no_training_schedule()
 
     def _scen(toll, bess_sites_label):
-        kwargs = {"use_houston_tolling": toll}
+        kwargs = {"use_houston_tolling": toll,
+                  "toll_max_mwh_per_day": toll_max_mwh_per_day}
         if bess_sites_label is None:
             kwargs["use_bess"] = False
         else:
@@ -514,11 +516,23 @@ def main():
                         "Only effective with --mc > 0.")
     p.add_argument("--stress-seed", type=int, default=7,
                    help="RNG seed for stress-injection (independent from --seed).")
+    p.add_argument("--gas-drift-pct", type=float, default=0.0,
+                   help="Forward-curve drift on Henry Hub (e.g. 0.05 = +5%% "
+                        "level shift). Anchored via Brent→HH elasticity ≈ 0.2 "
+                        "for a geopolitical oil shock; see README.")
+    p.add_argument("--power-drift-pct", type=float, default=0.0,
+                   help="Forward-curve drift on ERCOT LMP (applied to both "
+                        "hubs). Anchored via HH→LMP elasticity ≈ 0.5.")
+    p.add_argument("--toll-cap", type=float, default=None,
+                   help="Toll daily MWh cap (Houston). Empirical brackets: "
+                        "720=peaker, 1500=intermediate, 2280=near-nameplate. "
+                        "Default: no cap.")
     args = p.parse_args()
 
     scenario = A.Scenario(
-        use_houston_tolling = not args.no_toll,
-        use_bess            = not args.no_bess,
+        use_houston_tolling   = not args.no_toll,
+        use_bess              = not args.no_bess,
+        toll_max_mwh_per_day  = args.toll_cap,
     )
     # RFP daily floor is mandatory — Scenario default is 500 MWh-grid/day.
     # No CLI override.
@@ -529,8 +543,12 @@ def main():
     print(f"  scheme         : {args.scheme}")
     print(f"  toll           : {scenario.use_houston_tolling}")
     print(f"  bess (both)    : {scenario.use_bess}")
+    print(f"  toll daily cap : "
+          f"{scenario.toll_max_mwh_per_day if scenario.toll_max_mwh_per_day is not None else 'none (unconstrained)'}")
     print(f"  RFP 500 floor  : {scenario.training_min_mwh_per_day} MWh-grid/day "
           "(mandatory)")
+    print(f"  fwd-curve drift: "
+          f"gas {args.gas_drift_pct:+.1%}, power {args.power_drift_pct:+.1%}")
     print(f"  mode           : "
           f"{'Monte Carlo, N=' + str(args.mc) if args.mc > 0 else 'deterministic single path'}")
     print(f"  stress         : {args.stress}"
@@ -551,7 +569,9 @@ def main():
     else:
         print(f"[Calibrate + simulate] {args.mc} MC paths via "
               f"monte_carlo.calibrate_and_simulate() ...")
-        model, sim = calibrate_and_simulate(n_paths=args.mc, seed=args.seed)
+        model, sim = calibrate_and_simulate(n_paths=args.mc, seed=args.seed,
+                                             gas_drift_pct=args.gas_drift_pct,
+                                             power_drift_pct=args.power_drift_pct)
         print(model.summary().to_string(index=False))
         if args.stress != "none":
             sim_base = sim
@@ -589,6 +609,7 @@ def main():
     best_scenario, best_name, best_mean, phase_c_rows = \
         phase_c_procurement_optimization(
             winner_cad, prices_list, gas_list, args.scheme, n_paths,
+            toll_max_mwh_per_day=args.toll_cap,
         )
 
     # Verification: confirm Phase A's cadence winner still wins under
@@ -680,6 +701,9 @@ def write_run_summary(*, args, n_paths, scenario,
             "bess_sites":     list(scenario.bess_sites)
                               if scenario.use_bess else [],
             "training_min_mwh_per_day": scenario.training_min_mwh_per_day,
+            "toll_max_mwh_per_day":     scenario.toll_max_mwh_per_day,
+            "gas_drift_pct":            float(args.gas_drift_pct),
+            "power_drift_pct":          float(args.power_drift_pct),
             "include_no_training":      bool(args.include_no_training),
         },
         "final_policy": {

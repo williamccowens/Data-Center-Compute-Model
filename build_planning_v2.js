@@ -12,7 +12,10 @@ const {
   LevelFormat, PageBreak, ExternalHyperlink,
 } = require("docx");
 
-const ROOT = "C:/Users/WCCO/Desktop/Financing the Grid Data Center Project";
+// Write the generated docx next to this script (= repo root where the
+// tracked "Final Project Current Status Report.docx" lives). Previously
+// hard-coded to a Desktop path that no longer exists.
+const ROOT = __dirname;
 
 // ── Style helpers ────────────────────────────────────────────────────
 const P = (text, opts = {}) => new Paragraph({
@@ -45,6 +48,22 @@ const BULLET_R = (...runs) => new Paragraph({
   numbering: { reference: "bullets", level: 0 },
   children: runs.map(r =>
     typeof r === "string" ? new TextRun(r) : new TextRun(r)),
+  spacing: { after: 80 },
+});
+
+// Bullet whose final run is a clickable hyperlink. Usage:
+//   BULLET_LINK("Label - description (", "https://...", "EIA STEO May 2026", ")")
+const BULLET_LINK = (prefix, href, linkText, suffix = "") => new Paragraph({
+  numbering: { reference: "bullets", level: 0 },
+  children: [
+    new TextRun(prefix),
+    new ExternalHyperlink({
+      link: href,
+      children: [new TextRun({ text: linkText, style: "Hyperlink",
+                               color: "0563C1", underline: {} })],
+    }),
+    new TextRun(suffix),
+  ],
   spacing: { after: 80 },
 });
 
@@ -250,7 +269,7 @@ const content = [
       ["TOLL_HEAT_RATE_BTU_PER_KWH", "9,500", "RFP — simple-cycle peaker"],
       ["TOLL_VOM_PER_MMBTU", "$3/MMBtu", "RFP — variable O&M premium"],
       ["TOLL_MAX_MW", "100 MWh/hr", "Hourly cap = site grid cap (assumption)"],
-      ["TOLL_MAX_MWH_PER_DAY", "None", "⚠ TBD daily cap (RFP refers to one; value not specified)"],
+      ["Scenario.toll_max_mwh_per_day", "None (unconstrained)", "Daily MWh cap on Houston toll. Empirical brackets in assumptions.py: TOLL_DAILY_CAP_PEAKER=720, _INTERMEDIATE=1500, _NEAR_NAMEPLATE=2280 (anchored to EIA SCGT capacity-factor history). --toll-cap-sweep runs all four on the sweep driver."],
       ["TOLL_FIXED_SURCHARGE_PER_MWH", "$0", "⚠ TBD capacity payment (RFP didn't specify)"],
     ],
     [3000, 1500, 4860],
@@ -305,7 +324,7 @@ const content = [
   BULLET("Power balance: g_lmp + g_toll + dis_dc = train + inf (LP balance; ensures power into the DC matches compute load)"),
   BULLET("Tolling at Houston only: g_toll[h, WEST] = 0"),
   BULLET("Houston toll capacity: g_toll[h, HOUSTON] ≤ TOLL_MAX_MW (× capacity_factor)"),
-  BULLET("Optional daily toll MWh cap: Σ_h g_toll[h, HOUSTON] per day ≤ TOLL_MAX_MWH_PER_DAY (TBD)"),
+  BULLET("Optional daily toll MWh cap: Σ_h g_toll[h, HOUSTON] per day ≤ Scenario.toll_max_mwh_per_day (peaker 720 / intermediate 1500 / near-nameplate 2280 — EIA-anchored brackets)"),
   BULLET("BESS power: ch ≤ 40 MWh/hr, dis_dc + dis_grid ≤ 40 MWh/hr"),
   BULLET("BESS SOC: 0 ≤ soc ≤ 160 MWh, soc[h+1] = soc[h] + √0.92 × ch − (dis_dc + dis_grid) / √0.92"),
   BULLET("BESS starts and ends at SOC = 0 (no inventory at horizon endpoints)"),
@@ -389,8 +408,8 @@ const content = [
 
   H2("Tolling contract"),
   BULLET_R(
-    { text: "TOLL_MAX_MWH_PER_DAY", bold: true },
-    " — RFP mentions a daily MWh cap on Houston tolling but doesn't specify the value. Currently `None` (no daily cap). Tighter caps would lower realized toll value.",
+    { text: "Scenario.toll_max_mwh_per_day", bold: true },
+    " — daily MWh cap on Houston tolling. Three empirically-anchored brackets exposed in assumptions.py: peaker (720 MWh/day, 30 % of nameplate × 24 h — matches EIA's 9.6–14.1 % SCGT capacity-factor range), intermediate (1,500 MWh/day, ~63 % — IPP load-following toll convention, recommended headline default), and near-nameplate (2,280 MWh/day, ~95 % — availability-only haircut). --toll-cap-sweep on power_procurement_sweep.py reports marginal toll value as a function of the cap.",
   ),
   BULLET_R(
     { text: "Fixed surcharge / capacity payment", bold: true },
@@ -422,7 +441,7 @@ const content = [
   ),
   BULLET_R(
     { text: "Forward-curve drift", bold: true },
-    " — MC paths are simulated from OU calibrated on 2025 actuals (with deterministic baseline = 2025 hourly DAM shifted +1 year). No structural drift / forward-curve adjustment for fuel-price changes 2025 → 2026. If gas or load forecasts indicate meaningful drift, an additive shift or recalibrated long-run mean would tighten the estimate.",
+    " — MC paths are simulated from OU calibrated on 2025 actuals. Drift is now a CLI knob (--gas-drift-pct, --power-drift-pct on run_monte_carlo.py / run_planning_doc.py / power_procurement_sweep.py) that adds a log-space shift to each series' long-run mean via monte_carlo.apply_drift(). Baseline 2026 = 0 % both, consistent with EIA May-2026 STEO (HH 2026 forecast $3.50/MMBtu vs 2025 actual $3.53). Geopolitical oil overlay: a +30 % Brent shock translates to gas_drift_pct ≈ 0.06 (Brent→HH elasticity ≈ 0.2 via LNG-pull) and power_drift_pct ≈ 0.03 (HH→LMP elasticity ≈ 0.5 via gas-on-margin pass-through).",
   ),
   BULLET_R(
     { text: "Number of MC paths", bold: true },
@@ -443,6 +462,56 @@ const content = [
     { text: "Capacity-factor derate (true MIHR-style — still open)", bold: true },
     " — distinct from the LMP-signature view above. Our LP currently assumes capacity_factor = 1.0 (full 100 MW/site at every hour). A direct MIHR model would multiply the per-site grid cap by a stochastic capacity_factor[h] ≤ 1 driven by renewables + transmission. Not implemented; phase 4 doesn't do this either (it works on prices, not capacity).",
   ),
+
+  // ── DATA SOURCES & CITATIONS ─────────────────────────────────────
+  H1("Data sources and citations"),
+  P("Vendored data files (used directly by the calibration / LP):"),
+  BULLET("data/HH_full.csv - Henry Hub daily spot price ($/MMBtu), EIA Natural Gas Weekly. Source: eia.gov/dnav/ng/hist/rngwhhdD.htm."),
+  BULLET("data/rpt.00013060.0000000000000000.DAMLZHBSPP_2025.xlsx - ERCOT 2025 Day-Ahead Market hourly settlement-point prices, HB_HOUSTON and HB_WEST. Source: ercot.com (Market Information / DAM SPP report)."),
+  BULLET("data/artificial-intelligence-parameter-count.csv - Epoch AI parameter-count time series. Source: epochai.org (Notable AI Models dataset)."),
+  BULLET("data/ai-training-computation-vs-parameters-by-researcher-affiliation.csv - Epoch AI training-compute vs parameters panel. Source: epochai.org."),
+
+  P("External references used to anchor TBD/sensitivity inputs in this report:"),
+
+  H2("Tolling daily MWh cap (TOLL_DAILY_CAP_PEAKER / INTERMEDIATE / NEAR_NAMEPLATE)"),
+  BULLET_LINK("EIA Today in Energy (June 2023) - U.S. simple-cycle natural gas turbines operated at record highs in summer 2022. Anchors the peaker bracket: SCGT fleet annual capacity factor 9.6-14.1% (2017-2023), ~17% summer / ~10% off-season, ERCOT among regions above the national average. ",
+    "https://www.eia.gov/todayinenergy/detail.php?id=55680",
+    "eia.gov/todayinenergy/detail.php?id=55680"),
+  BULLET_LINK("EIA Form 923 (plant-level operations data) - net generation and heat input by prime-mover, used to verify the SCGT capacity-factor range above and to derive an MDQ-equivalent envelope. ",
+    "https://www.eia.gov/electricity/data/eia923/",
+    "eia.gov/electricity/data/eia923"),
+  BULLET_LINK("Modo Energy - ERCOT BESS tolling agreement explainer. Establishes that current ERCOT tolling contracts give the offtaker direct dispatch rights over the full asset envelope (near-nameplate convention). ",
+    "https://modoenergy.com/research/en/battery-bess-offtake-tolling-agreements-route-market-contracts-ercot-explainer-part-one",
+    "modoenergy.com/.../ercot-explainer-part-one"),
+  BULLET_LINK("GridStor - Fortune 500 tolling pact for a 150 MW / 350 MWh ERCOT battery (Dec 2025). Recent comparable disclosing contract structure for the near-nameplate bracket. ",
+    "https://www.stocktitan.net/news/GS/grid-stor-announces-tolling-agreement-and-start-of-construction-for-86v9on13jxdv.html",
+    "stocktitan.net/.../gridstor-tolling-agreement"),
+  BULLET_LINK("Entergy MUCPA - Capacity Sale and Tolling Agreement RFP (template). Reference document showing standard daily-MDQ contract structure for natural-gas-fired tolling. ",
+    "https://rfp.entergy.com/entrfp/send/Final%20RFP%20MUCPA%20-%20Tolling.pdf",
+    "rfp.entergy.com/.../MUCPA-Tolling.pdf"),
+
+  H2("Forward-curve drift (--gas-drift-pct / --power-drift-pct)"),
+  BULLET_LINK("EIA Short-Term Energy Outlook (May 2026) - natural gas section. Baseline: 2025 actual HH = $3.53/MMBtu, 2026 forecast = $3.50/MMBtu (essentially flat - hence default gas_drift_pct = 0). 2026 LNG export forecast = 17.0 Bcf/d (up from 15.1 in 2025), near peak export-complex capacity. ",
+    "https://www.eia.gov/outlooks/steo/report/natgas.php",
+    "eia.gov/outlooks/steo/report/natgas.php"),
+  BULLET_LINK("EIA STEO May 2026 (full PDF) - the primary source for the Brent forecast that drives the geopolitical-shock overlay. Reports Brent $106/b May-Jun 2026 and $115/b 2Q peak amid Strait of Hormuz disruption; ~10.5 Mbbl/d of Mideast production shut-in. ",
+    "https://www.eia.gov/outlooks/steo/pdf/steo_full.pdf",
+    "eia.gov/outlooks/steo/pdf/steo_full.pdf"),
+  BULLET_LINK("EIA Today in Energy - Henry Hub spot prices to fall slightly in 2026, rise in 2027. Confirms the EIA's view that higher 2026 Brent supports associated-gas production (bearish HH), partially offsetting the LNG-pull (bullish HH) channel. ",
+    "https://www.eia.gov/todayinenergy/detail.php?id=67004",
+    "eia.gov/todayinenergy/detail.php?id=67004"),
+  BULLET_LINK("EIA Press Release (May 12, 2026) - STEO revision amid continued Mideast disruption. Quantifies the Hormuz-closure assumption (closed until late May, shipping resumes June) used to size the +30% Brent shock scenario. ",
+    "https://www.eia.gov/pressroom/releases/press588.php",
+    "eia.gov/pressroom/releases/press588.php"),
+  BULLET_LINK("Rigzone (May 20, 2026) - EIA lowers Henry Hub forecast for 2026, 2027. Documents the May-vs-April STEO revision ($3.67 -> $3.50/MMBtu) - useful for justifying baseline gas_drift_pct = 0 against a contemporaneous-news critique. ",
+    "https://www.rigzone.com/news/usa_eia_lowers_henry_hub_price_forecast_for_2026_2027-20-may-2026-183738-article/",
+    "rigzone.com/.../usa-eia-lowers-henry-hub-price-forecast"),
+  BULLET_LINK("S&P Global - Texas summer 2025 power prices may top 2024 on weather and strong gas. Anchors the HH -> ERCOT LMP elasticity: Houston Ship Channel summer forwards ~$4/MMBtu (vs ~$2 in 2024) coincided with ERCOT Houston on-peak forwards $110-167/MWh (vs DAM $30-40/MWh in 2024). ",
+    "https://www.spglobal.com/energy/en/news-research/latest-news/electric-power/042325-outlook-2025-texas-summer-power-prices-may-top-2024-levels-on-weather-strong-gas",
+    "spglobal.com/.../texas-summer-power-prices-2025"),
+  BULLET_LINK("Potomac Economics - 2024 State of the Market Report for ERCOT. Source for implied heat-rate ranges (Figure 7) used to derive the HH->LMP pass-through elasticity (~0.5 in gas-on-margin hours). ",
+    "https://www.potomaceconomics.com/wp-content/uploads/2025/06/2024-State-of-the-Market-Report.pdf",
+    "potomaceconomics.com/.../2024-State-of-the-Market-Report.pdf"),
 
   // ── REPORT skeleton (left blank; user will fill in) ──────────────
   H1("Report"),

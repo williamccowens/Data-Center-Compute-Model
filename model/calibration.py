@@ -32,12 +32,19 @@ class OUParams:
     dt_hours: float
     seasonal_table: pd.DataFrame
     transform: str = "log"
+    # Additive shift applied to the log-price during simulation, on top of
+    # the calibrated seasonal table. Used by monte_carlo.apply_drift() to
+    # impose a forward-curve drift (e.g., a geopolitical gas shock) without
+    # mutating the calibrated seasonal_table. drift_log = log(1 + drift_pct)
+    # so a +5% level shift in HH ⇒ drift_log ≈ 0.0488.
+    drift_log: float = 0.0
 
     def __repr__(self) -> str:
         hl = np.log(2) / self.kappa * self.dt_hours
+        drift_txt = f", drift={self.drift_log:+.4f}" if self.drift_log else ""
         return (f"OUParams({self.name}: shift={self.shift:.2f}, "
                 f"κ={self.kappa:.4f}/{self.dt_hours}h, σ={self.sigma:.4f}, "
-                f"half-life≈{hl:.1f}h)")
+                f"half-life≈{hl:.1f}h{drift_txt})")
 
 
 def fit_seasonality(price: pd.Series,

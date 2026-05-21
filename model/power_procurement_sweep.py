@@ -41,7 +41,7 @@ Output:
   - CSV in model/outputs/
 
 Runtime: 4 scenarios × N paths in parallel. With 11 workers, ~50 sec/
-scenario at N=50 → ~3–4 min total.
+scenario at N=50 -> ~3–4 min total.
 """
 from __future__ import annotations
 import sys
@@ -71,15 +71,31 @@ def main():
                             "market_decay", "doc_blended"],
                    help="Token-revenue multiplier scheme (default doc_blended)")
     p.add_argument("--seed",    type=int,   default=42)
+    p.add_argument("--gas-drift-pct", type=float, default=0.0,
+                   help="Forward-curve drift on Henry Hub (e.g. 0.05 = "
+                        "+5%% level shift). Default: 0 (no drift).")
+    p.add_argument("--power-drift-pct", type=float, default=0.0,
+                   help="Forward-curve drift on ERCOT LMP (applied to both "
+                        "hubs). Default: 0 (no drift).")
+    p.add_argument("--toll-cap-sweep", action="store_true",
+                   help="Sweep TOLL_MAX_MWH_PER_DAY across "
+                        "{peaker=720, intermediate=1500, near-nameplate=2280, "
+                        "uncapped=None} for the LMP+toll scenarios. Reports "
+                        "marginal toll value as a function of the daily cap.")
     args = p.parse_args()
 
     print(f"BESS × Toll ablation, MC N={args.mc}, cadence={args.cadence}d, "
           f"scheme={args.scheme}")
+    if args.gas_drift_pct or args.power_drift_pct:
+        print(f"  forward-curve drift: gas {args.gas_drift_pct:+.1%}, "
+              f"power {args.power_drift_pct:+.1%}")
     print()
 
     # ── Build N price paths ─────────────────────────────────────────────
     print(f"[1/2] Calibrating + simulating {args.mc} MC paths ...")
-    model, sim = calibrate_and_simulate(n_paths=args.mc, seed=args.seed)
+    model, sim = calibrate_and_simulate(n_paths=args.mc, seed=args.seed,
+                                         gas_drift_pct=args.gas_drift_pct,
+                                         power_drift_pct=args.power_drift_pct)
     prices_list, gas_list = [], []
     for i in range(args.mc):
         p_i, g_i = path_to_lp_inputs(sim, i)
@@ -91,7 +107,7 @@ def main():
 
     # 2 tolling states × 4 BESS placement options = 8 scenarios.
     # BESS placement is asymmetric: Houston (where toll competes for arb)
-    # vs West (no toll → BESS is the only LMP-spike hedging tool).
+    # vs West (no toll -> BESS is the only LMP-spike hedging tool).
     def _scen(toll, bess_sites_label):
         kwargs = {"use_houston_tolling": toll}
         if bess_sites_label is None:
@@ -189,14 +205,14 @@ def main():
     ]
     print(bess_rows.to_string(index=False, float_format=lambda x: f"{x:,.0f}"))
     print()
-    print("BESS net (rev_bess − bess_ch − bess_lease, $M):")
+    print("BESS net (rev_bess - bess_ch - bess_lease, $M):")
     for _, r in bess_rows.iterrows():
         net = r["rev_bess_$M"] - r["bess_ch_$M"] - r["bess_lease_$M"]
         print(f"  {r['scenario']:<25}  ${net:+,.2f}M")
 
     # ── Virtual BESS (TBx swap) valuation, side-by-side with physical ─────
     # The physical BESS in the LP above is co-optimized with perfect-foresight
-    # dispatch; the virtual TBx swap mechanically captures Σtop-x − Σbottom-x
+    # dispatch; the virtual TBx swap mechanically captures Σtop-x - Σbottom-x
     # daily, scaled by RTE. The TBx leg uses the SAME MC price paths so the
     # two are directly comparable.
     print()
@@ -224,7 +240,7 @@ def main():
     print("=" * 90)
     # Physical "BESS net" per site comes from the BESS-both scenario rows
     # minus their tolling-matched baseline. We use the simplest read:
-    # physical_net = rev_bess − bess_ch − bess_lease (averaged across paths).
+    # physical_net = rev_bess - bess_ch - bess_lease (averaged across paths).
     bess_both = df[df["scenario"] == "LMP + BESS both"].iloc[0]
     phys_per_site_net = (bess_both["rev_bess_$M"]
                          - bess_both["bess_ch_$M"]
@@ -242,8 +258,60 @@ def main():
     compare_df = pd.DataFrame(compare_rows)
     print(compare_df.to_string(index=False,
                                float_format=lambda v: f"{v:+,.2f}"))
-    print("  physical_net = avg per-site (rev_bess − bess_ch − lease) from LP")
-    print("  virtual_net_@$3M = E[floating] − $3M lease (apples-to-apples)")
+    print("  physical_net = avg per-site (rev_bess - bess_ch - lease) from LP")
+    print("  virtual_net_@$3M = E[floating] - $3M lease (apples-to-apples)")
+
+    # ── Optional: toll-daily-cap sensitivity ─────────────────────────────
+    # Sweep TOLL_MAX_MWH_PER_DAY ∈ {peaker, intermediate, near-nameplate,
+    # uncapped} on the LMP+toll scenario (no BESS, to isolate the toll's
+    # marginal $ value as a function of the daily cap). Compares against the
+    # LMP-only baseline already solved above.
+    if args.toll_cap_sweep:
+        print()
+        print("=" * 90)
+        print(f"TOLL DAILY-CAP SENSITIVITY  (LMP+toll vs LMP-only, "
+              f"across {args.mc} paths)")
+        print("=" * 90)
+        cap_brackets = [
+            ("peaker (720)",            720.0),
+            ("intermediate (1500)",    1500.0),
+            ("near-nameplate (2280)",  2280.0),
+            ("uncapped (None)",        None),
+        ]
+        base_profits = np.array(
+            [b["profit_$M"] for b in raw_results["LMP only"]]
+        )
+        cap_rows = []
+        for label, cap in cap_brackets:
+            scen = A.Scenario(use_houston_tolling=True, use_bess=False,
+                              toll_max_mwh_per_day=cap)
+            bds = solve_across_paths(prices_list, gas_list, scen, schedule,
+                                     parallel=True,
+                                     progress_label=f"cap={label}")
+            profits = np.array([b["profit_$M"] for b in bds])
+            avg = average_breakdowns(bds)
+            delta = profits - base_profits
+            cap_rows.append({
+                "cap_label":          label,
+                "cap_mwh_per_day":    cap if cap is not None else float("inf"),
+                "mean_$M":            float(profits.mean()),
+                "std_$M":             float(profits.std()),
+                "delta_vs_lmp_$M":    float(delta.mean()),
+                "g_toll_total_mwh":   avg["g_toll_total_mwh"],
+                "toll_cost_$M":       avg["cost_toll_$M"],
+                "binding_frac":       (avg["g_toll_total_mwh"]
+                                        / (cap * 24 * 184) if cap else None),
+                # 184 = days in 6-month horizon; 24 = h/day. binding_frac ≈ 1
+                # means the cap binds nearly every day; ≪ 1 means slack.
+            })
+            print(f"  {label:<24}  mean=${profits.mean():>10,.2f}M  "
+                  f"toll delta vs LMP-only=${delta.mean():+10,.2f}M  "
+                  f"toll-MWh={avg['g_toll_total_mwh']:>9,.0f}")
+        cap_df = pd.DataFrame(cap_rows)
+        cap_path = OUT_DIR / (f"toll_cap_sweep_n{args.mc}_"
+                              f"{args.scheme}_c{args.cadence}.csv")
+        cap_df.to_csv(cap_path, index=False)
+        print(f"\nToll-cap sweep saved -> {cap_path.name}")
 
     out_path = OUT_DIR / f"power_procurement_mc_n{args.mc}_{args.scheme}_c{args.cadence}.csv"
     df.to_csv(out_path, index=False)
@@ -252,7 +320,7 @@ def main():
     tbx_primary.to_csv(OUT_DIR / f"tbx_swap_primary_n{args.mc}.csv", index=False)
     tbx_sweep.to_csv(OUT_DIR / f"tbx_swap_xsweep_n{args.mc}.csv", index=False)
     compare_df.to_csv(OUT_DIR / f"phys_vs_virt_bess_n{args.mc}.csv", index=False)
-    print(f"\nSaved → {out_path.name} (+ deltas, TBx, phys-vs-virt CSVs)")
+    print(f"\nSaved -> {out_path.name} (+ deltas, TBx, phys-vs-virt CSVs)")
 
 
 if __name__ == "__main__":
