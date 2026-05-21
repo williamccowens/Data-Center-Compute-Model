@@ -470,6 +470,23 @@ def save_hourly_schedule(winner_cad, prices_list, gas_list, scenario,
     sample_df = pd.DataFrame(rows)
     print(sample_df.to_string(index=False))
 
+    # ── Result visualizations ────────────────────────────────────────
+    # Regenerate the four result charts (train/inf diurnal, attributed
+    # power cost per day, BESS dispatch + procurement mix, LMP/toll
+    # overlay) into OUT_DIR/figures/ from the just-saved hourly_winner_avg.
+    try:
+        from plots import make_all_plots
+        figs = make_all_plots(out_avg,
+                              out_dir=OUT_DIR / "figures",
+                              run_label=f"n{n_paths}_{scheme}_{_label(winner_cad)}")
+        print(f"  Result figures ({len(figs)}) → {(OUT_DIR / 'figures').name}/")
+        for p in figs:
+            print(f"    {p.name}")
+    except Exception as exc:
+        # Plot failure must not fail the headline run — the CSVs are
+        # already on disk and re-runnable via `python model/plots.py ...`.
+        print(f"  ⚠ Plot generation failed: {exc}")
+
 
 # ProcessPool helpers for save_hourly_schedule (module-level for pickle)
 _HOURLY_STATE = {}
