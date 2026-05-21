@@ -29,8 +29,9 @@ The top-level [README.md](../README.md) has the full phase ordering. Briefly:
 | File | Purpose |
 |---|---|
 | `optimize.py` | **The LP.** `build_and_solve(prices, gas, scenario, schedule)` — see top-level [README](../README.md) for decision variables / constraints / objective. Called N times by the driver (once per MC path). |
-| `run_planning_doc.py` | **Headline driver.** Default: Monte Carlo with **N=50 paths × cadence cartesian** (~25 min), picks cadence with highest *mean profit across paths*. Stage 2 refines around the winner. `--mc 100` for tighter percentiles, `--mc 10` for a quick check, `--mc 0` for single-path deterministic. |
+| `run_planning_doc.py` | **Headline driver.** Default: Monte Carlo with **N=50 paths × cadence cartesian** (~25 min), picks cadence with highest *mean profit across paths*. Stage 2 refines around the winner. `--mc 100` for tighter percentiles, `--mc 10` for a quick check, `--mc 0` for single-path deterministic. Drift overlays: `--gas-drift-pct` / `--power-drift-pct`. Calls `plots.py` at end of run. |
 | `run_monte_carlo.py` | Single-cadence MC at higher N — faster when cadence comparison not needed |
+| `plots.py` | Four result charts (train/inf diurnal, attributed power cost per day, BESS dispatch + procurement mix, LMP/toll overlay). Reads `hourly_winner_avg_*.csv`, writes PNGs to `outputs/figures/`. Runs automatically from `run_planning_doc.py`; also callable standalone. |
 
 **Phase 3 — Verification:**
 

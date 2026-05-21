@@ -348,6 +348,7 @@ const content = [
   BULLET("Per-path hourly schedule in long format (all decision variables: g_lmp, g_toll, train, inf, compute-MWh, FLOPS, tokens, BESS dispatch if enabled)."),
   BULLET("Averaged-across-paths hourly schedule with ±std for every variable."),
   BULLET("Per-cadence mean/std/percentile summary CSV."),
+  BULLET("Four result charts auto-rendered into model/outputs/figures/ via plots.py: train/inf diurnal profile, attributed power cost per day for train vs inf, daily procurement mix (and BESS dispatch when active), and LMP/toll-cost overlay with daily toll-exercise frequency. Regenerated on every headline run; failures are caught and logged so the LP itself is unaffected."),
   BULLET("Console: first 24 hours at HOUSTON with mean ± std annotations."),
 
   H2("Inputs at a glance"),
@@ -468,8 +469,19 @@ const content = [
   P("Vendored data files (used directly by the calibration / LP):"),
   BULLET("data/HH_full.csv - Henry Hub daily spot price ($/MMBtu), EIA Natural Gas Weekly. Source: eia.gov/dnav/ng/hist/rngwhhdD.htm."),
   BULLET("data/rpt.00013060.0000000000000000.DAMLZHBSPP_2025.xlsx - ERCOT 2025 Day-Ahead Market hourly settlement-point prices, HB_HOUSTON and HB_WEST. Source: ercot.com (Market Information / DAM SPP report)."),
-  BULLET("data/artificial-intelligence-parameter-count.csv - Epoch AI parameter-count time series. Source: epochai.org (Notable AI Models dataset)."),
-  BULLET("data/ai-training-computation-vs-parameters-by-researcher-affiliation.csv - Epoch AI training-compute vs parameters panel. Source: epochai.org."),
+  BULLET("data/artificial-intelligence-parameter-count.csv - Epoch AI parameter-count time series. Source: epochai.org (Notable AI Models dataset), distributed by Our World in Data under CC BY."),
+  BULLET("data/ai-training-computation-vs-parameters-by-researcher-affiliation.csv - Epoch AI training-compute vs parameters panel. Source: epochai.org, distributed by Our World in Data under CC BY."),
+
+  P("Cited inline in the planning doc (Epoch AI / OWID series and token-price model):"),
+  BULLET_LINK("Epoch AI - Notable AI Models dataset. Primary source for both vendored CSVs above; the post-2020 log-linear param fit and the params -> petaFLOPS power-law fit are derived from this panel via fit_growth_curves.py. ",
+    "https://epochai.org/data/notable-ai-models",
+    "epochai.org/data/notable-ai-models"),
+  BULLET_LINK("Our World in Data - Parameters in notable artificial intelligence systems. The chart format the planning doc reproduces; proximate attribution for the Epoch AI CSV used in our fits. ",
+    "https://ourworldindata.org/grapher/artificial-intelligence-parameter-count",
+    "ourworldindata.org/.../artificial-intelligence-parameter-count"),
+  BULLET_LINK("benchlm.ai - LLM pricing index. Source for the GPT-5.4Pro frontier-peak token prices ($30/MM input, $180/MM output) used in the blended $80/MM-token inference revenue calculation. Replace with the project team's finalized per-release price curve when it lands. ",
+    "https://benchlm.ai/llm-pricing",
+    "benchlm.ai/llm-pricing"),
 
   P("External references used to anchor TBD/sensitivity inputs in this report:"),
 
@@ -512,6 +524,15 @@ const content = [
   BULLET_LINK("Potomac Economics - 2024 State of the Market Report for ERCOT. Source for implied heat-rate ranges (Figure 7) used to derive the HH->LMP pass-through elasticity (~0.5 in gas-on-margin hours). ",
     "https://www.potomaceconomics.com/wp-content/uploads/2025/06/2024-State-of-the-Market-Report.pdf",
     "potomaceconomics.com/.../2024-State-of-the-Market-Report.pdf"),
+
+  H2("AI-structural drift baseline (--gas-drift-pct 0.005 / --power-drift-pct 0.01)"),
+  P("Separate driver from the Brent/geopolitical scenarios above: secular load growth from data-center buildout. Translated from the sources below into a roughly +1 %/yr LMP, +0.5 %/yr HH structural drift, prorated to ~half a year for the June-December 2026 horizon."),
+  BULLET_LINK("ERCOT Capacity, Demand and Reserves (CDR) Report - December 2024 release. Forecasts peak demand growth ~5-7 %/yr through 2030 driven heavily by data-center and crypto load, with reserve margins tightening. Primary anchor for the 'AI-structural' load-growth scenario. ",
+    "https://www.ercot.com/files/docs/2025/02/12/CapacityDemandandReservesReport_December2024.pdf",
+    "ercot.com/.../CDR_December2024.pdf"),
+  BULLET_LINK("EIA Annual Energy Outlook 2026 - Reference case for ERCOT shows electricity sales growth ~3-4 %/yr and a continued role for gas-fired generation on the margin. Translates to roughly +2 %/yr on average LMP and +1 %/yr on HH in the project horizon. ",
+    "https://www.eia.gov/outlooks/aeo/",
+    "eia.gov/outlooks/aeo"),
 
   // ── REPORT skeleton (left blank; user will fill in) ──────────────
   H1("Report"),

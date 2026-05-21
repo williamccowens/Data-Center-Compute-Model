@@ -1,0 +1,213 @@
+BESS × Toll ablation, MC N=50, cadence=30d, scheme=doc_blended
+  forward-curve drift: gas +6.5%, power +4.0%
+
+[1/2] Calibrating + simulating 50 MC paths ...
+
+[2/2] Solving 8 scenarios × 50 paths = 400 LP runs ...
+  [LMP_only]   5/50
+  [LMP_only]  10/50
+  [LMP_only]  15/50
+  [LMP_only]  20/50
+  [LMP_only]  25/50
+  [LMP_only]  30/50
+  [LMP_only]  35/50
+  [LMP_only]  40/50
+  [LMP_only]  45/50
+  [LMP_only]  50/50
+  LMP only                   mean=$  95,043.4M  std=$1.16M  (10s)
+  [LMP_+_toll]   5/50
+  [LMP_+_toll]  10/50
+  [LMP_+_toll]  15/50
+  [LMP_+_toll]  20/50
+  [LMP_+_toll]  25/50
+  [LMP_+_toll]  30/50
+  [LMP_+_toll]  35/50
+  [LMP_+_toll]  40/50
+  [LMP_+_toll]  45/50
+  [LMP_+_toll]  50/50
+  LMP + toll                 mean=$  95,044.6M  std=$1.06M  (11s)
+  [LMP_+_BESS_Houston]   5/50
+  [LMP_+_BESS_Houston]  10/50
+  [LMP_+_BESS_Houston]  15/50
+  [LMP_+_BESS_Houston]  20/50
+  [LMP_+_BESS_Houston]  25/50
+  [LMP_+_BESS_Houston]  30/50
+  [LMP_+_BESS_Houston]  35/50
+  [LMP_+_BESS_Houston]  40/50
+  [LMP_+_BESS_Houston]  45/50
+  [LMP_+_BESS_Houston]  50/50
+  LMP + BESS Houston         mean=$  95,041.8M  std=$1.12M  (12s)
+  [LMP_+_BESS_West]   5/50
+  [LMP_+_BESS_West]  10/50
+  [LMP_+_BESS_West]  15/50
+  [LMP_+_BESS_West]  20/50
+  [LMP_+_BESS_West]  25/50
+  [LMP_+_BESS_West]  30/50
+  [LMP_+_BESS_West]  35/50
+  [LMP_+_BESS_West]  40/50
+  [LMP_+_BESS_West]  45/50
+  [LMP_+_BESS_West]  50/50
+  LMP + BESS West            mean=$  95,042.1M  std=$1.10M  (13s)
+  [LMP_+_BESS_both]   5/50
+  [LMP_+_BESS_both]  10/50
+  [LMP_+_BESS_both]  15/50
+  [LMP_+_BESS_both]  20/50
+  [LMP_+_BESS_both]  25/50
+  [LMP_+_BESS_both]  30/50
+  [LMP_+_BESS_both]  35/50
+  [LMP_+_BESS_both]  40/50
+  [LMP_+_BESS_both]  45/50
+  [LMP_+_BESS_both]  50/50
+  LMP + BESS both            mean=$  95,040.5M  std=$1.07M  (17s)
+  [LMP_+_toll_+_BESS_Houston]   5/50
+  [LMP_+_toll_+_BESS_Houston]  10/50
+  [LMP_+_toll_+_BESS_Houston]  15/50
+  [LMP_+_toll_+_BESS_Houston]  20/50
+  [LMP_+_toll_+_BESS_Houston]  25/50
+  [LMP_+_toll_+_BESS_Houston]  30/50
+  [LMP_+_toll_+_BESS_Houston]  35/50
+  [LMP_+_toll_+_BESS_Houston]  40/50
+  [LMP_+_toll_+_BESS_Houston]  45/50
+  [LMP_+_toll_+_BESS_Houston]  50/50
+  LMP + toll + BESS Houston  mean=$  95,043.0M  std=$1.02M  (12s)
+  [LMP_+_toll_+_BESS_West]   5/50
+  [LMP_+_toll_+_BESS_West]  10/50
+  [LMP_+_toll_+_BESS_West]  15/50
+  [LMP_+_toll_+_BESS_West]  20/50
+  [LMP_+_toll_+_BESS_West]  25/50
+  [LMP_+_toll_+_BESS_West]  30/50
+  [LMP_+_toll_+_BESS_West]  35/50
+  [LMP_+_toll_+_BESS_West]  40/50
+  [LMP_+_toll_+_BESS_West]  45/50
+  [LMP_+_toll_+_BESS_West]  50/50
+  LMP + toll + BESS West     mean=$  95,043.3M  std=$1.01M  (13s)
+  [LMP_+_toll_+_BESS_both]   5/50
+  [LMP_+_toll_+_BESS_both]  10/50
+  [LMP_+_toll_+_BESS_both]  15/50
+  [LMP_+_toll_+_BESS_both]  20/50
+  [LMP_+_toll_+_BESS_both]  25/50
+  [LMP_+_toll_+_BESS_both]  30/50
+  [LMP_+_toll_+_BESS_both]  35/50
+  [LMP_+_toll_+_BESS_both]  40/50
+  [LMP_+_toll_+_BESS_both]  45/50
+  [LMP_+_toll_+_BESS_both]  50/50
+  LMP + toll + BESS both     mean=$  95,041.7M  std=$0.97M  (17s)
+
+==========================================================================================
+PROFIT BY SCENARIO  ($M, across 50 paths)
+==========================================================================================
+                 scenario   mean_$M  std_$M    p05_$M    p95_$M
+                 LMP only 95,043.37    1.16 95,041.50 95,044.84
+               LMP + toll 95,044.58    1.06 95,042.86 95,045.95
+       LMP + BESS Houston 95,041.78    1.12 95,039.98 95,043.22
+          LMP + BESS West 95,042.06    1.10 95,040.27 95,043.47
+          LMP + BESS both 95,040.47    1.07 95,038.75 95,041.85
+LMP + toll + BESS Houston 95,043.00    1.02 95,041.34 95,044.33
+   LMP + toll + BESS West 95,043.27    1.01 95,041.64 95,044.59
+   LMP + toll + BESS both 95,041.68    0.97 95,040.11 95,042.96
+
+==========================================================================================
+MARGINAL VALUE vs LMP-only  ($M, per-path delta then averaged)
+==========================================================================================
+                 scenario  delta_mean  delta_std  delta_p05  delta_p95
+                 LMP only       +0.00      +0.00      +0.00      +0.00
+               LMP + toll       +1.21      +0.15      +1.02      +1.44
+       LMP + BESS Houston       -1.59      +0.05      -1.64      -1.50
+          LMP + BESS West       -1.31      +0.06      -1.42      -1.21
+          LMP + BESS both       -2.90      +0.10      -3.04      -2.69
+LMP + toll + BESS Houston       -0.37      +0.19      -0.61      -0.07
+   LMP + toll + BESS West       -0.10      +0.19      -0.35      +0.24
+   LMP + toll + BESS both       -1.68      +0.23      -1.98      -1.27
+
+==========================================================================================
+BESS MECHANICS (averaged across paths)
+==========================================================================================
+                 scenario  ch_mwh  dis_dc_mwh  dis_grid_mwh  rev_bess_$M  bess_ch_$M  bess_lease_$M
+       LMP + BESS Houston  52,790      13,475        35,091            2           1              3
+          LMP + BESS West  55,394      14,095        36,867            2           1              3
+          LMP + BESS both 108,184      21,460        78,069            4           3              6
+LMP + toll + BESS Houston  52,790       7,137        41,429            2           1              3
+   LMP + toll + BESS West  55,394      13,998        36,964            2           1              3
+   LMP + toll + BESS both 108,184      16,185        83,344            5           3              6
+
+BESS net (rev_bess - bess_ch - bess_lease, $M):
+  LMP + BESS Houston         $-2.45M
+  LMP + BESS West            $-2.28M
+  LMP + BESS both            $-4.36M
+  LMP + toll + BESS Houston  $-1.89M
+  LMP + toll + BESS West     $-2.27M
+  LMP + toll + BESS both     $-3.89M
+
+==========================================================================================
+VIRTUAL TBx SWAP — same 50 paths, x=4, daily settlement
+==========================================================================================
+   site  floating_mean_$M  floating_std_$M  floating_p05_$M  floating_p95_$M  breakeven_fixed_$M  net_at_physical_$M
+HOUSTON             +1.30            +0.04            +1.25            +1.38               +1.30               -1.70
+   WEST             +1.55            +0.06            +1.44            +1.65               +1.55               -1.45
+
+TBx sensitivity to x (mean floating $M per site, RTE-adjusted):
+x           1     2     4     8
+site                           
+HOUSTON +0.43 +0.80 +1.30 +1.87
+WEST    +0.51 +0.93 +1.55 +2.20
+
+==========================================================================================
+PHYSICAL (LP-dispatched) vs VIRTUAL (TBx swap) BESS — per site, $M
+==========================================================================================
+   site  physical_net_$M  virtual_floating_$M  virtual_breakeven_$M  virtual_net_@$3M_$M  phys_minus_virt_$M
+HOUSTON            -2.18                +1.30                 +1.30                -1.70               -0.48
+   WEST            -2.18                +1.55                 +1.55                -1.45               -0.73
+  physical_net = avg per-site (rev_bess - bess_ch - lease) from LP
+  virtual_net_@$3M = E[floating] - $3M lease (apples-to-apples)
+
+==========================================================================================
+TOLL DAILY-CAP SENSITIVITY  (LMP+toll vs LMP-only, across 50 paths)
+==========================================================================================
+  [cap=peaker (720)]   5/50
+  [cap=peaker (720)]  10/50
+  [cap=peaker (720)]  15/50
+  [cap=peaker (720)]  20/50
+  [cap=peaker (720)]  25/50
+  [cap=peaker (720)]  30/50
+  [cap=peaker (720)]  35/50
+  [cap=peaker (720)]  40/50
+  [cap=peaker (720)]  45/50
+  [cap=peaker (720)]  50/50
+  peaker (720)              mean=$ 95,044.53M  toll delta vs LMP-only=$     +1.16M  toll-MWh=   48,760
+  [cap=intermediate (1500)]   5/50
+  [cap=intermediate (1500)]  10/50
+  [cap=intermediate (1500)]  15/50
+  [cap=intermediate (1500)]  20/50
+  [cap=intermediate (1500)]  25/50
+  [cap=intermediate (1500)]  30/50
+  [cap=intermediate (1500)]  35/50
+  [cap=intermediate (1500)]  40/50
+  [cap=intermediate (1500)]  45/50
+  [cap=intermediate (1500)]  50/50
+  intermediate (1500)       mean=$ 95,044.58M  toll delta vs LMP-only=$     +1.21M  toll-MWh=   54,223
+  [cap=near-nameplate (2280)]   5/50
+  [cap=near-nameplate (2280)]  10/50
+  [cap=near-nameplate (2280)]  15/50
+  [cap=near-nameplate (2280)]  20/50
+  [cap=near-nameplate (2280)]  25/50
+  [cap=near-nameplate (2280)]  30/50
+  [cap=near-nameplate (2280)]  35/50
+  [cap=near-nameplate (2280)]  40/50
+  [cap=near-nameplate (2280)]  45/50
+  [cap=near-nameplate (2280)]  50/50
+  near-nameplate (2280)     mean=$ 95,044.58M  toll delta vs LMP-only=$     +1.21M  toll-MWh=   54,530
+  [cap=uncapped (None)]   5/50
+  [cap=uncapped (None)]  10/50
+  [cap=uncapped (None)]  15/50
+  [cap=uncapped (None)]  20/50
+  [cap=uncapped (None)]  25/50
+  [cap=uncapped (None)]  30/50
+  [cap=uncapped (None)]  35/50
+  [cap=uncapped (None)]  40/50
+  [cap=uncapped (None)]  45/50
+  [cap=uncapped (None)]  50/50
+  uncapped (None)           mean=$ 95,044.58M  toll delta vs LMP-only=$     +1.21M  toll-MWh=   54,533
+
+Toll-cap sweep saved -> toll_cap_sweep_n50_doc_blended_c30.csv
+
+Saved -> power_procurement_mc_n50_doc_blended_c30.csv (+ deltas, TBx, phys-vs-virt CSVs)
