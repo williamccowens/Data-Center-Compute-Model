@@ -115,11 +115,28 @@ TOLL_MAX_MW                = 100.0            # ASSUMPTION: toll covers full 100
 # a per-MWh adder — a real toll holder dispatches on marginal cost once
 # the capacity charge is sunk.
 #
-# $8/kW-month is the SELLER-SIDE market rate: midpoint of the typical
-# $5–$15/kW-mo SCGT capacity-payment range in ERCOT public IPP
-# disclosures (Calpine / Vistra / NRG 10-Ks; same reference frame as the
-# daily-cap brackets). This is what a Houston SCGT operator would
-# rationally ask for the option.
+# $8/kW-month is the SELLER-SIDE market rate. Anchors (May 2026):
+#   * PJM 2025/26 base residual auction (Jul 2024): cleared at
+#     $269.92/MW-day for the majority of the PJM footprint =
+#     $8.10/kW-month. Almost exactly our default. PJM is the most
+#     directly observable US capacity-market signal.
+#   * PJM 2026/27 base residual auction (Jul 2025): $329.17/MW-day
+#     (FERC-approved price cap, fleet-wide) = $9.88/kW-month — the
+#     "shift back to gas" / AI-load-growth premium pushed the cap.
+#   * Brattle ERCOT CONE 2024 study (Aeroderivative LM6000):
+#     $293/kW-year = $24.42/kW-month, flagged as "low end of range"
+#     and "likely outdated due to inflation". This is what new-build
+#     SCGT in ERCOT would need to be financeable.
+#   * Norton Rose Fulbright "Shift Back to Gas" (Aug 2025) industry
+#     panel: BESS tolling at "low teens" $/kW-mo (i.e. $10–$15);
+#     gas capacity payments needed for new builds "$30/kW-month" to
+#     "$50/kW-month" per panelist estimates.
+# ERCOT does not have a formal capacity market, so PJM is an imperfect
+# benchmark — ERCOT generators recover fixed costs via scarcity pricing
+# in real-time energy + Texas Energy Fund grants. A real Houston SCGT
+# toll deal would price the option premium against the generator's
+# expected foregone scarcity revenue (which $8/kW-mo plausibly
+# approximates given recent ERCOT scarcity events).
 #
 # The BUYER-SIDE willingness-to-pay anchor is different — the toll's
 # gross 6-month option value at full 100 MW reservation is $1.14–1.21M

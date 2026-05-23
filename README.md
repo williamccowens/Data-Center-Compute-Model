@@ -406,12 +406,22 @@ Heat rate (9,500 BTU/kWh) and the $3/MMBtu Henry-Hub premium that covers
 variable fuel + O&M are RFP-firm. The RFP leaves three knobs unspecified:
 
 1. **Capacity payment rate** (`TOLL_CAPACITY_PAYMENT_PER_KW_MONTH`,
-   default $8/kW-mo). This is the **seller-side market rate** — what a
-   Houston SCGT operator would ask for the right to call on the asset.
-   Midpoint of the $5–$15/kW-mo range from public ERCOT IPP disclosures
-   (Calpine / Vistra / NRG 10-Ks). Applied like the BESS lease — a fixed
-   $ cost at the procurement-comparison level, not in the LP objective,
-   for any given reservation.
+   default $8/kW-mo). This is the **seller-side market rate**. Anchored
+   to the directly-observable PJM 2025/26 base residual auction, which
+   cleared at $269.92/MW-day = $8.10/kW-month for the majority of the
+   PJM footprint (price has risen ~10× since 2024/25 amid AI-load-growth
+   tightness). For context, ERCOT's 2024 CONE study (Brattle, Aeroderivative
+   LM6000) puts the cost of new entry at $24.42/kW-month — i.e., a
+   greenfield SCGT would need ~3× our default to be financeable —
+   and Norton Rose Fulbright's August 2025 "Shift Back to Gas" industry
+   panel estimates new-build gas capacity payments at "$30–$50/kW-mo".
+   ERCOT lacks a formal capacity market, so PJM is an imperfect
+   benchmark; a real Houston SCGT toll deal would price the option
+   premium against the generator's foregone scarcity revenue (which
+   $8/kW-mo plausibly approximates given recent ERCOT scarcity events).
+   Applied like the BESS lease — a fixed $ cost at the
+   procurement-comparison level, not in the LP objective, for any given
+   reservation.
 2. **MW reservation** (`Scenario.toll_mw_reserved`, default `None` ⇒
    100 MW). This is **buyer-side** — how many MW the data center commits
    to leasing. The buyer's optimal reservation is chosen ex ante (before

@@ -91,11 +91,19 @@ inference**.
 - *Fixed* (capacity payment, paid for the right to call on the SCGT
   regardless of dispatch) = `TOLL_CAPACITY_PAYMENT_PER_KW_MONTH × MW
   reserved × 6 mo`. Default rate $8/kW-month is the **seller-side market
-  rate** anchored to the $5–$15/kW-mo SCGT capacity-payment range from
-  ERCOT public IPP disclosures (Calpine / Vistra / NRG 10-Ks). Applied at
-  the procurement-comparison level in `compute_breakdown` alongside the
-  BESS lease — it doesn't enter the LP objective because for any FIXED
-  reservation it's a constant.
+  rate**, directly anchored to the PJM 2025/26 capacity-auction clearing
+  price ($269.92/MW-day = $8.10/kW-month, July 2024 auction). For
+  comparison: ERCOT's 2024 CONE study (Brattle, Aeroderivative LM6000) puts
+  cost of new entry at $24.42/kW-mo (~3× our default), and Norton Rose
+  Fulbright's August 2025 "Shift Back to Gas" industry panel estimates
+  new-build gas capacity payments at $30–$50/kW-mo. ERCOT lacks a formal
+  capacity market so PJM is an imperfect benchmark; a real Houston SCGT
+  toll deal would price the option premium against the generator's
+  foregone scarcity revenue (which $8/kW-mo plausibly approximates given
+  recent ERCOT scarcity events). Applied at the procurement-comparison
+  level in `compute_breakdown` alongside the BESS lease — it doesn't
+  enter the LP objective because for any FIXED reservation it's a
+  constant.
 
   The MW reservation is buyer-side: `Scenario.toll_mw_reserved` (default
   `None` ⇒ full 100 MW for backwards compatibility). The buyer commits
