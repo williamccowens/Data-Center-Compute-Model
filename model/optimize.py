@@ -125,6 +125,15 @@ def build_and_solve(
     use_toll = scenario.use_houston_tolling
     use_bess = scenario.use_bess
     bess_sites = set(scenario.bess_sites) if use_bess else set()
+    # Toll reservation: None ⇒ full TOLL_MAX_MW; a float in [0, TOLL_MAX_MW]
+    # gives a partial reservation (used by --reservation-sweep). This is an
+    # ex-ante commitment — set in the scenario before the LP runs, not a
+    # decision the LP gets to make per-path.
+    toll_mw_reserved = (
+        scenario.toll_mw_reserved
+        if scenario.toll_mw_reserved is not None
+        else A.TOLL_MAX_MW
+    )
 
     m = pulp.LpProblem("data_center_profit_v2", pulp.LpMaximize)
 
@@ -158,7 +167,7 @@ def build_and_solve(
             m += g_lmp[h][s] + g_toll[h][s] <= A.SITE_POWER_CAPACITY_MW * cf
             m += train[h][s] + inf[h][s]     <= A.SITE_POWER_CAPACITY_MW * cf
             if s in A.TOLL_SITES and use_toll:
-                m += g_toll[h][s] <= A.TOLL_MAX_MW * cf
+                m += g_toll[h][s] <= toll_mw_reserved * cf
 
             if use_bess and s in bess_sites:
                 # BESS charge from grid: own 40 MW connection (NOT shared with DC)
@@ -362,7 +371,10 @@ def compute_breakdown(res: SolveResult, scenario: A.Scenario) -> dict:
     cost_bess_ch = h["cost_bess_ch"].sum() if "cost_bess_ch" in h.columns else 0.0
     bess_lease   = (len(scenario.bess_sites) * A.BESS_6MO_LEASE_COST
                     if scenario.use_bess else 0.0)
-    toll_lease   = (A.TOLL_6MO_CAPACITY_PAYMENT
+    # Toll capacity payment scales with the reserved MW (None ⇒ full
+    # TOLL_MAX_MW, $4.8M default). Setting scen.toll_mw_reserved < 100
+    # caps both the LP's g_toll and this fixed cost proportionally.
+    toll_lease   = (A.toll_6mo_capacity_payment(scenario.toll_mw_reserved)
                     if scenario.use_houston_tolling else 0.0)
     return {
         "rev_inf_$M":         rev_inf / 1e6,

@@ -403,17 +403,34 @@ from the relevant row of `fit_growth_curves.py` output.
 ### Tolling parameters
 
 Heat rate (9,500 BTU/kWh) and the $3/MMBtu Henry-Hub premium that covers
-variable fuel + O&M are RFP-firm. The RFP leaves two knobs unspecified:
+variable fuel + O&M are RFP-firm. The RFP leaves three knobs unspecified:
 
-1. **Capacity payment** for the right to call on the SCGT regardless of
-   dispatch. Modeled as `TOLL_CAPACITY_PAYMENT_PER_KW_MONTH = 8.0`
-   ($4.8M for the 6-month horizon at 100 MW), midpoint of the $5–$15
-   /kW-mo SCGT range from ERCOT public IPP disclosures (Calpine /
-   Vistra / NRG 10-Ks). Applied like the BESS lease — a flat $ cost at
-   the procurement-comparison level, not inside the LP, because it's a
-   sunk option premium that doesn't change dispatch economics. Tune via
-   `assumptions.TOLL_CAPACITY_PAYMENT_PER_KW_MONTH`.
-2. **Daily MWh cap** on the contract (next subsection).
+1. **Capacity payment rate** (`TOLL_CAPACITY_PAYMENT_PER_KW_MONTH`,
+   default $8/kW-mo). This is the **seller-side market rate** — what a
+   Houston SCGT operator would ask for the right to call on the asset.
+   Midpoint of the $5–$15/kW-mo range from public ERCOT IPP disclosures
+   (Calpine / Vistra / NRG 10-Ks). Applied like the BESS lease — a fixed
+   $ cost at the procurement-comparison level, not in the LP objective,
+   for any given reservation.
+2. **MW reservation** (`Scenario.toll_mw_reserved`, default `None` ⇒
+   100 MW). This is **buyer-side** — how many MW the data center commits
+   to leasing. The buyer's optimal reservation is chosen ex ante (before
+   the MC paths realize), matching real toll-deal timing. Solved by the
+   outer sweep `power_procurement_sweep.py --reservation-sweep` over
+   MW ∈ {0, 20, 40, 60, 80, 100}. The capacity payment scales linearly
+   with reserved MW.
+3. **Daily MWh cap** on the contract (next subsection).
+
+**Why the buyer's optimal ≠ the seller's asking price**: the toll's
+gross option value across our 4 drift scenarios is $1.14–1.21M / 6mo at
+the full 100 MW reservation (independently corroborated by
+ltemry/FTG-Final-Project at $1.42M). At $8/kW-mo × 100 MW × 6mo = $4.8M
+the lease costs ~4× the option value, so the LMP-only baseline wins
+Phase C in every scenario. The two sweeps quantify the structure:
+`--capacity-payment-sweep` shows the breakeven K* (~$2/kW-mo) at fixed
+100 MW; `--reservation-sweep` shows whether a smaller reservation could
+salvage the deal at $8/kW-mo (it doesn't — LP is bang-bang in MW, so
+optimal reservation collapses to 0 or 100 with no middle ground).
 
 The cap is exposed as `Scenario.toll_max_mwh_per_day` (CLI flag
 `--toll-cap`) and `assumptions.py` exports three empirically-anchored

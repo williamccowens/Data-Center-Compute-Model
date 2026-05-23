@@ -41,23 +41,42 @@ full Brent shock in `../run_n50_2026-05-20_ai_plus_brent/`.
 
 ## Headline result
 
-**Final policy: 30-day cadence × (LMP + Houston tolling, no BESS) → mean profit $95,045.49M / 6 months across 50 paths.**
+**Final policy: 30-day training cadence × LMP-only (no Houston tolling, no BESS) → mean profit $95,044.33M / 6 months across 50 paths.**
 
-**Profit delta vs the zero-drift baseline (`run_n50_2026-05-20_baseline`): -$0.56M** — essentially rounding error vs the $95B headline. The drift overlay does not change the policy decision:
+- Phase A: 30d wins both stages; cadence-vs-cadence gaps remain ~$3B, dwarfing procurement gaps.
+- Phase C: Gross Houston-toll option value (LP-derived, at full 100 MW reservation) = **$1.161M / 6mo** — well below the $4.8M default capacity payment ($8/kW-mo × 100 MW × 6 mo), so LMP-only wins. The toll value is independently corroborated by `ltemry/FTG-Final-Project`'s $1.42M HH-pricing estimate (~20% gap due to scope of cost calculation + price-proxy differences).
+- Toll daily-cap sensitivity (`toll_cap_sweep_*.csv`): LP-natural toll dispatch averages ~53k MWh over the horizon; intermediate (1,500 MWh/day), near-nameplate (2,280), and uncapped all produce indistinguishable Phase C results.
 
-- Same cadence winner (30d, confirmed under Phase C)
-- Same procurement winner (LMP + Houston toll, no BESS)
-- Toll value still ~$1.16M / 6mo (vs $1.14M baseline) — tiny lift from the bump in HH widening the LMP-vs-toll spread on the marginal hour
+### Reservation-MW sensitivity (`reservation_sweep_*.csv`)
 
-**Mechanism of the -$0.56M delta** (LMP does **not** affect inference revenue — token prices are decoupled from grid prices):
+Buyer-side decision: commit to MW reservation ex ante, before the price path realizes. `base_profit` is LP profit excluding the capacity payment; `lease` and `net` are at the default $8/kW-mo.
 
-| Component | Driver | Magnitude |
-|---|---|---|
-| Power cost on LMP grid draw | +1.5 % × ~$35 avg LMP × 876,000 grid-MWh | ≈ +$440K cost |
-| Toll cost (HH bump) | +3 % × ~$57 avg toll cost × 53,000 toll-MWh | ≈ +$90K cost |
-| Inference revenue | **Unchanged** — depends on token prices, not LMP | $0 |
-| BESS sell-to-grid revenue / charge cost | n/a — Phase C dropped BESS | $0 |
-| **Net** | | **≈ −$0.5M (matches observed −$0.56M)** |
+| MW reserved | Base profit | Lease @ $8/kW-mo | Net |
+|---:|---:|---:|---:|
+|   0 MW | $  95,044.33M | $ 0.00M | $  95,044.33M |
+|  20 MW | $  95,044.56M | $ 0.96M | $  95,043.60M |
+|  40 MW | $  95,044.79M | $ 1.92M | $  95,042.87M |
+|  60 MW | $  95,045.03M | $ 2.88M | $  95,042.15M |
+|  80 MW | $  95,045.26M | $ 3.84M | $  95,041.42M |
+| 100 MW | $  95,045.49M | $ 4.80M | $  95,040.69M |
+
+**Optimal reservation at K=$8/kW-mo: 0 MW** (= don't sign the toll contract; LMP-only baseline is the best option). The base profit gain from going 80 MW → 100 MW is only ~$0.2M, while the lease grows by $0.96M — toll's marginal value declines fast as you add reservation MW beyond what the LP would dispatch in any hour.
+
+### Capacity-payment sensitivity (`capacity_payment_sweep_*.csv`)
+
+Seller-side decision: what rate $/kW-month would the SCGT owner need to charge for the deal to clear? The two views per K are (a) **fixed 100 MW** (seller's standard take-the-whole-option offer); (b) **optimal MW** (buyer's best response from the reservation grid above).
+
+| K ($/kW-mo) | Lease @ 100 MW | Net (100 MW) vs LMP-only | Optimal MW | Net (optimal) vs LMP-only |
+|---:|---:|---:|---:|---:|
+| $ 0.00 | $ 0.00M | $ +1.161M | 100 MW | $ +1.161M |
+| $ 1.00 | $ 0.60M | $ +0.561M | 100 MW | $ +0.561M |
+| $ 2.00 | $ 1.20M | $ -0.039M |   0 MW | $ +0.000M |
+| $ 4.00 | $ 2.40M | $ -1.239M |   0 MW | $ +0.000M |
+| $ 6.00 | $ 3.60M | $ -2.439M |   0 MW | $ +0.000M |
+| $ 8.00 | $ 4.80M | $ -3.639M |   0 MW | $ +0.000M |
+| $12.00 | $ 7.20M | $ -6.039M |   0 MW | $ +0.000M |
+
+**Breakeven K\* (fixed 100 MW): $1.935/kW-month.** Above this, no MW reservation > 0 beats LMP-only — the toll's gross option value can't keep up with the lease cost at any sizing. Below it, the LP picks full 100 MW reservation (no interior optimum — LP is bang-bang in MW). The seller's $8/kW-mo default is ~4× above this breakeven, which is why LMP-only wins every drift scenario.
 
 ---
 

@@ -37,11 +37,42 @@ Two scripts produced these files:
 
 ## Headline result
 
-**Final policy: 30-day training cadence × (LMP + Houston tolling, no BESS) → mean profit $95,046.05M / 6 months across 50 paths.**
+**Final policy: 30-day training cadence × LMP-only (no Houston tolling, no BESS) → mean profit $95,044.90M / 6 months across 50 paths.**
 
 - Phase A: 30d wins both stages; cadence-vs-cadence gaps remain ~$3B, dwarfing procurement gaps.
-- Phase C: BESS still does not clear the $3M/site/6mo lease at GPT-5.4Pro token prices; toll alone adds ~$1.14M / 6mo (`power_procurement_deltas_*.csv`).
-- Toll daily-cap sensitivity (`toll_cap_sweep_*.csv`): the LP's natural Houston toll use averages ~53,345 MWh over the horizon. The peaker bracket (720 MWh/day) binds in summer-peak days and reduces toll value modestly; the intermediate (1,500), near-nameplate (2,280) and uncapped cases produce essentially identical $1.14M delta vs LMP-only.
+- Phase C: Gross Houston-toll option value (LP-derived, at full 100 MW reservation) = **$1.143M / 6mo** — well below the $4.8M default capacity payment ($8/kW-mo × 100 MW × 6 mo), so LMP-only wins. The toll value is independently corroborated by `ltemry/FTG-Final-Project`'s $1.42M HH-pricing estimate (~20% gap due to scope of cost calculation + price-proxy differences).
+- Toll daily-cap sensitivity (`toll_cap_sweep_*.csv`): LP-natural toll dispatch averages ~53k MWh over the horizon; intermediate (1,500 MWh/day), near-nameplate (2,280), and uncapped all produce indistinguishable Phase C results.
+
+### Reservation-MW sensitivity (`reservation_sweep_*.csv`)
+
+Buyer-side decision: commit to MW reservation ex ante, before the price path realizes. `base_profit` is LP profit excluding the capacity payment; `lease` and `net` are at the default $8/kW-mo.
+
+| MW reserved | Base profit | Lease @ $8/kW-mo | Net |
+|---:|---:|---:|---:|
+|   0 MW | $  95,044.90M | $ 0.00M | $  95,044.90M |
+|  20 MW | $  95,045.13M | $ 0.96M | $  95,044.17M |
+|  40 MW | $  95,045.36M | $ 1.92M | $  95,043.44M |
+|  60 MW | $  95,045.59M | $ 2.88M | $  95,042.71M |
+|  80 MW | $  95,045.82M | $ 3.84M | $  95,041.98M |
+| 100 MW | $  95,046.05M | $ 4.80M | $  95,041.25M |
+
+**Optimal reservation at K=$8/kW-mo: 0 MW** (= don't sign the toll contract; LMP-only baseline is the best option). The base profit gain from going 80 MW → 100 MW is only ~$0.2M, while the lease grows by $0.96M — toll's marginal value declines fast as you add reservation MW beyond what the LP would dispatch in any hour.
+
+### Capacity-payment sensitivity (`capacity_payment_sweep_*.csv`)
+
+Seller-side decision: what rate $/kW-month would the SCGT owner need to charge for the deal to clear? The two views per K are (a) **fixed 100 MW** (seller's standard take-the-whole-option offer); (b) **optimal MW** (buyer's best response from the reservation grid above).
+
+| K ($/kW-mo) | Lease @ 100 MW | Net (100 MW) vs LMP-only | Optimal MW | Net (optimal) vs LMP-only |
+|---:|---:|---:|---:|---:|
+| $ 0.00 | $ 0.00M | $ +1.143M | 100 MW | $ +1.143M |
+| $ 1.00 | $ 0.60M | $ +0.543M | 100 MW | $ +0.543M |
+| $ 2.00 | $ 1.20M | $ -0.057M |   0 MW | $ +0.000M |
+| $ 4.00 | $ 2.40M | $ -1.257M |   0 MW | $ +0.000M |
+| $ 6.00 | $ 3.60M | $ -2.457M |   0 MW | $ +0.000M |
+| $ 8.00 | $ 4.80M | $ -3.657M |   0 MW | $ +0.000M |
+| $12.00 | $ 7.20M | $ -6.057M |   0 MW | $ +0.000M |
+
+**Breakeven K\* (fixed 100 MW): $1.906/kW-month.** Above this, no MW reservation > 0 beats LMP-only — the toll's gross option value can't keep up with the lease cost at any sizing. Below it, the LP picks full 100 MW reservation (no interior optimum — LP is bang-bang in MW). The seller's $8/kW-mo default is ~4× above this breakeven, which is why LMP-only wins every drift scenario.
 
 ---
 
@@ -85,6 +116,8 @@ The 74 MB per-path hourly file (`hourly_winner_all_paths_*.csv`) is **not commit
 | `power_procurement_mc_n50_doc_blended_c30.csv` | 2 KB | 8-scenario procurement mean / std / percentiles + BESS arb mechanics. |
 | `power_procurement_deltas_n50_doc_blended.csv` | 1 KB | Per-path paired Δprofit vs LMP-only baseline, averaged. |
 | `toll_cap_sweep_n50_doc_blended_c30.csv` | 1 KB | **New.** Toll-daily-cap sensitivity at the four EIA-anchored brackets (peaker 720, intermediate 1500, near-nameplate 2280, uncapped). Reports mean profit, Δ vs LMP-only, and total toll-MWh dispatched per bracket. |
+| `reservation_sweep_n50_doc_blended_c30.csv` | 1 KB | **New.** MW reservation sweep at K=$8/kW-mo. For each MW ∈ {0, 20, 40, 60, 80, 100}, the LP is re-solved across the 50 paths with `scenario.toll_mw_reserved` set accordingly. Reports base profit (excl. lease), the lease at default rate, and net. Pure non-anticipatory analysis — the buyer commits MW before MC paths realize. |
+| `capacity_payment_sweep_n50_doc_blended_c30.csv` | 1 KB | **New.** $/kW-month rate sweep at K ∈ {0, 1, 2, 4, 6, 8, 12} on top of the MW sweep above. Reports two views per K: fixed 100 MW (seller's standard offer) and optimal MW (buyer's best response). Identifies the breakeven K* where even the best MW reservation no longer beats LMP-only. Pure arithmetic on the MW-sweep data. |
 | `tbx_swap_primary_n50.csv` | < 1 KB | Virtual BESS swap value at primary x=4, daily settlement. Per site: E[floating], breakeven fixed payment, net at $3M physical lease. |
 | `tbx_swap_xsweep_n50.csv` | 1 KB | TBx sensitivity to x ∈ {1, 2, 4, 8} per site. |
 | `phys_vs_virt_bess_n50.csv` | < 1 KB | Head-to-head: physical (LP-dispatched) vs virtual (TBx swap) net per site, including phys_minus_virt. |

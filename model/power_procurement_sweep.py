@@ -82,7 +82,27 @@ def main():
                         "{peaker=720, intermediate=1500, near-nameplate=2280, "
                         "uncapped=None} for the LMP+toll scenarios. Reports "
                         "marginal toll value as a function of the daily cap.")
+    p.add_argument("--reservation-sweep", action="store_true",
+                   help="Outer sweep over toll_mw_reserved ∈ "
+                        "{0, 20, 40, 60, 80, 100} MW. For each value, solve "
+                        "the LP at use_houston_tolling=True (no BESS) × N "
+                        "paths. Produces base_profit(MW) — the LP profit "
+                        "BEFORE the capacity payment is deducted — which "
+                        "feeds the capacity-payment sweep.")
+    p.add_argument("--capacity-payment-sweep", action="store_true",
+                   help="Sweep TOLL_CAPACITY_PAYMENT_PER_KW_MONTH ∈ "
+                        "{0, 1, 2, 4.8, 8, 12} $/kW-mo. Reports two views "
+                        "per K: (a) fixed 100 MW reservation (seller's "
+                        "standard 'take the whole option' offer), and "
+                        "(b) optimal MW reservation (buyer's best response "
+                        "from the reservation-sweep). Auto-runs the "
+                        "reservation-sweep if not already done. Identifies "
+                        "the breakeven K* where even the best MW choice "
+                        "no longer beats LMP-only.")
     args = p.parse_args()
+    # Capacity-payment sweep depends on the MW-base-profit grid.
+    if args.capacity_payment_sweep:
+        args.reservation_sweep = True
 
     print(f"BESS × Toll ablation, MC N={args.mc}, cadence={args.cadence}d, "
           f"scheme={args.scheme}")
@@ -314,6 +334,184 @@ def main():
                               f"{args.scheme}_c{args.cadence}.csv")
         cap_df.to_csv(cap_path, index=False)
         print(f"\nToll-cap sweep saved -> {cap_path.name}")
+
+    # ── Optional: toll reservation MW sweep (non-anticipatory) ───────────
+    # Outer loop over toll_mw_reserved ∈ {0, 20, 40, 60, 80, 100} MW. For
+    # each value, solve the LP × N paths with scenario.toll_mw_reserved set
+    # accordingly. The LP caps g_toll at that MW × cap_factor; the capacity
+    # payment is deducted at the breakdown level. This is the ECONOMICALLY
+    # CORRECT framing — a real toll buyer commits to a reservation size
+    # BEFORE the price path realizes, so the choice is ex-ante across
+    # paths, not perfect-foresight per-path.
+    #
+    # Output is base_profit(MW) — the LP profit BEFORE the capacity payment
+    # — which feeds the capacity-payment sweep so the two analyses share
+    # data and don't double-count compute.
+    mw_base_profits: dict[float, np.ndarray] = {}
+    if args.reservation_sweep:
+        print()
+        print("=" * 90)
+        print(f"RESERVATION-MW SENSITIVITY  (toll capacity sized ex-ante; "
+              f"LP solved per MW)")
+        print("=" * 90)
+        mw_grid = [0.0, 20.0, 40.0, 60.0, 80.0, 100.0]
+        mw_rows = []
+        kw_per_mw = 1000.0
+        horizon_mo = 6.0
+        for mw in mw_grid:
+            t0 = time.time()
+            if mw == 0.0:
+                # MW=0 ⇒ no toll. Use the existing LMP-only baseline (it's
+                # identical to "toll on at 0 MW reserved" since g_toll=0
+                # everywhere) — saves one LP-solve round.
+                bds = raw_results["LMP only"]
+                base = np.array([b["profit_$M"] for b in bds])
+                lease_M = 0.0
+                solve_s = 0.0
+            else:
+                scen = A.Scenario(use_houston_tolling=True, use_bess=False,
+                                  toll_mw_reserved=mw)
+                bds = solve_across_paths(prices_list, gas_list, scen, schedule,
+                                         parallel=True,
+                                         progress_label=f"MW={int(mw)}")
+                # base_profit excludes the lease — recover it by adding back
+                base = np.array([b["profit_$M"] + b["toll_lease_$M"]
+                                 for b in bds])
+                lease_M = float(np.mean([b["toll_lease_$M"] for b in bds]))
+                solve_s = time.time() - t0
+            mw_base_profits[mw] = base
+            net_at_default_K = base - (
+                A.TOLL_CAPACITY_PAYMENT_PER_KW_MONTH * mw * kw_per_mw
+                * horizon_mo / 1e6
+            )
+            mw_rows.append({
+                "mw_reserved":              mw,
+                "base_mean_$M":             float(base.mean()),
+                "base_std_$M":              float(base.std()),
+                "lease_at_default_$M":      A.TOLL_CAPACITY_PAYMENT_PER_KW_MONTH
+                                            * mw * kw_per_mw * horizon_mo / 1e6,
+                "net_at_default_K_mean_$M": float(net_at_default_K.mean()),
+                "solve_s":                  solve_s,
+            })
+            print(f"  MW={int(mw):>3}  base=${base.mean():>10,.2f}M  "
+                  f"lease@K=$8={A.TOLL_CAPACITY_PAYMENT_PER_KW_MONTH * mw * kw_per_mw * horizon_mo / 1e6:>5,.2f}M  "
+                  f"net=${net_at_default_K.mean():>10,.2f}M  "
+                  f"({solve_s:.0f}s)")
+
+        mw_df = pd.DataFrame(mw_rows)
+        # Optimal MW at the default K
+        best_idx = mw_df["net_at_default_K_mean_$M"].idxmax()
+        best_mw  = mw_df.iloc[best_idx]["mw_reserved"]
+        best_net = mw_df.iloc[best_idx]["net_at_default_K_mean_$M"]
+        lmp_only_mean = float(
+            np.mean([b["profit_$M"] for b in raw_results["LMP only"]])
+        )
+        print()
+        print(f"Optimal reservation at K=${A.TOLL_CAPACITY_PAYMENT_PER_KW_MONTH:.2f}/kW-mo: "
+              f"{best_mw:.0f} MW  →  net=${best_net:,.2f}M  "
+              f"(LMP-only baseline: ${lmp_only_mean:,.2f}M, "
+              f"toll {'beats' if best_net > lmp_only_mean else 'loses by'} "
+              f"${abs(best_net - lmp_only_mean):,.2f}M)")
+
+        mw_sweep_path = OUT_DIR / (
+            f"reservation_sweep_n{args.mc}_"
+            f"{args.scheme}_c{args.cadence}.csv"
+        )
+        mw_df.to_csv(mw_sweep_path, index=False)
+        print(f"\nReservation-MW sweep saved -> {mw_sweep_path.name}")
+
+    # ── Optional: capacity-payment sensitivity ───────────────────────────
+    # Two views per K value:
+    #   (a) FIXED 100 MW reservation — the seller's "take the whole option"
+    #       offer. Answers "at this price, is the standard 100 MW lease
+    #       worth it?" Computed from mw_base_profits[100].
+    #   (b) OPTIMAL MW reservation — the buyer's best response (chosen from
+    #       the reservation-MW grid). Answers "at this price, what's the
+    #       best reservation, and does even that beat LMP-only?"
+    # LP solutions are invariant to constant capacity payments, so this
+    # block is pure arithmetic on the MW-sweep base profits.
+    if args.capacity_payment_sweep:
+        print()
+        print("=" * 90)
+        print(f"CAPACITY-PAYMENT SENSITIVITY  (K swept; fixed-100MW vs "
+              f"optimal-MW views)")
+        print("=" * 90)
+        # K-grid: $0 (free option), $1 / $2 (near breakeven for drift cases
+        # under default RFP-firm conditions), $4.8/kW-mo equivalent is just
+        # $8 because reservation=100, $8 (seller market rate), $12 (above market).
+        K_grid = [0.0, 1.0, 2.0, 4.0, 6.0, 8.0, 12.0]
+        kw_per_mw = 1000.0
+        horizon_mo = 6.0
+
+        mw_grid_sorted = sorted(mw_base_profits.keys())
+        lmp_only_per_path = np.array(
+            [b["profit_$M"] for b in raw_results["LMP only"]]
+        )
+        lmp_only_mean_M = float(lmp_only_per_path.mean())
+
+        K_rows = []
+        for K in K_grid:
+            # Fixed-100 MW view
+            base_100 = mw_base_profits[100.0]
+            lease_100 = K * 100.0 * kw_per_mw * horizon_mo / 1e6
+            net_100 = base_100 - lease_100
+            # Optimal MW view: pick MW* maximizing E[net_profit(K, MW)]
+            mw_means = []
+            for mw in mw_grid_sorted:
+                base = mw_base_profits[mw]
+                lease = K * mw * kw_per_mw * horizon_mo / 1e6
+                mw_means.append(float(np.mean(base - lease)))
+            best_idx = int(np.argmax(mw_means))
+            best_mw  = mw_grid_sorted[best_idx]
+            best_net = mw_means[best_idx]
+            K_rows.append({
+                "K_per_kw_month":         K,
+                "lease_at_100MW_$M":      lease_100,
+                "fixed100_net_mean_$M":   float(net_100.mean()),
+                "fixed100_vs_lmp_only":   float(net_100.mean()) - lmp_only_mean_M,
+                "optimal_mw":             best_mw,
+                "optimal_net_mean_$M":    best_net,
+                "optimal_vs_lmp_only":    best_net - lmp_only_mean_M,
+                "lmp_only_mean_$M":       lmp_only_mean_M,
+            })
+
+        K_df = pd.DataFrame(K_rows)
+        print(K_df.to_string(
+            index=False, float_format=lambda v: f"{v:,.3f}"
+        ))
+
+        # Closed-form fixed-100MW breakeven
+        gross_100 = (float(mw_base_profits[100.0].mean()) - lmp_only_mean_M)
+        breakeven_K_100 = gross_100 * 1e6 / (100.0 * kw_per_mw * horizon_mo)
+        # Optimal-MW breakeven: highest K where ANY MW > 0 still wins
+        # (the optimal-MW path doesn't drop below LMP-only until even
+        #  MW → 0 is best — by definition the "breakeven" for optimal-MW is
+        # the smallest K where optimal MW = 0; above that, toll has no value).
+        threshold_K = None
+        for K in np.linspace(0.0, 20.0, 401):
+            mw_means = []
+            for mw in mw_grid_sorted:
+                lease = K * mw * kw_per_mw * horizon_mo / 1e6
+                mw_means.append(float(np.mean(mw_base_profits[mw] - lease)))
+            best_idx = int(np.argmax(mw_means))
+            if mw_grid_sorted[best_idx] == 0.0:
+                threshold_K = K
+                break
+
+        print()
+        print(f"Fixed-100MW breakeven K*  : ${breakeven_K_100:,.3f}/kW-month")
+        if threshold_K is not None:
+            print(f"Optimal-MW abandons toll  : at K ≥ ${threshold_K:,.3f}/kW-month")
+        print(f"Current default K=$8/kW-mo  → toll {'beats' if K_df.iloc[-2]['optimal_vs_lmp_only'] > 0 else 'loses to'} "
+              f"LMP-only by ${abs(K_df.iloc[-2]['optimal_vs_lmp_only']):,.2f}M at the optimal MW reservation "
+              f"({int(K_df.iloc[-2]['optimal_mw'])} MW)")
+
+        K_sweep_path = OUT_DIR / (
+            f"capacity_payment_sweep_n{args.mc}_"
+            f"{args.scheme}_c{args.cadence}.csv"
+        )
+        K_df.to_csv(K_sweep_path, index=False)
+        print(f"\nCapacity-payment sweep saved -> {K_sweep_path.name}")
 
     out_path = OUT_DIR / f"power_procurement_mc_n{args.mc}_{args.scheme}_c{args.cadence}.csv"
     df.to_csv(out_path, index=False)

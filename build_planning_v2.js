@@ -262,15 +262,16 @@ const content = [
   P("Tolling is structured as a binary period-long contract decision (`Scenario.use_houston_tolling`). When the contract is signed, the LP gets an hourly option to draw up to TOLL_MAX_MW of power at the tolling cost — exercised only when LMP > toll cost. Toll variable cost per MWh:"),
   PR({ text: "toll_cost[$/MWh] = (HH_gas[$/MMBtu] + $3/MMBtu O&M) × 9.5 MMBtu/MWh ≈ $57/MWh at $3 gas", italics: true }),
   P("Heat rate is 9,500 BTU/kWh per the RFP — typical of an efficient simple-cycle peaker. West Texas has no tolling option (no gas plant available)."),
-  P("Tolling parameters. The capacity payment is a flat $ cost over the 6-month horizon (paid for the right to call on the SCGT regardless of dispatch) — not a per-MWh adder — so it lives outside the LP and is applied at the procurement-comparison level alongside the BESS lease:"),
+  P("Tolling parameters. The capacity payment scales linearly with the buyer's reserved MW — a fixed $ cost over the 6-month horizon, applied at the procurement-comparison level (not in the LP objective) for any given reservation. Two sweeps quantify the seller-vs-buyer gap: --capacity-payment-sweep varies the $/kW-mo rate at fixed 100 MW; --reservation-sweep solves the LP at MW ∈ {0, 20, 40, 60, 80, 100} so the buyer's optimal ex-ante reservation can be picked given the rate."),
   buildTable(
     ["Parameter", "Default", "Notes"],
     [
       ["TOLL_HEAT_RATE_BTU_PER_KWH", "9,500", "RFP — simple-cycle peaker"],
       ["TOLL_VOM_PER_MMBTU", "$3/MMBtu", "RFP — gas premium above HH spot"],
-      ["TOLL_MAX_MW", "100 MWh/hr", "Hourly cap = site grid cap (assumption)"],
+      ["TOLL_MAX_MW", "100 MWh/hr", "Hourly cap = site grid cap; also upper bound on buyer's reservation"],
       ["Scenario.toll_max_mwh_per_day", "None (unconstrained)", "Daily MWh cap on Houston toll. Empirical brackets in assumptions.py: TOLL_DAILY_CAP_PEAKER=720, _INTERMEDIATE=1500, _NEAR_NAMEPLATE=2280 (anchored to EIA SCGT capacity-factor history). --toll-cap-sweep runs all four on the sweep driver."],
-      ["TOLL_CAPACITY_PAYMENT_PER_KW_MONTH", "$8/kW-mo", "Capacity payment for the toll option (RFP didn't specify). $4.8M for the 6-month horizon at 100 MW. Anchored to $5–$15/kW-mo SCGT range from ERCOT public IPP disclosures (Calpine/Vistra/NRG 10-Ks)."],
+      ["Scenario.toll_mw_reserved", "None ⇒ 100 MW", "Buyer-side MW reservation, committed ex ante (before paths realize). LP caps g_toll at this MW × cap_factor; capacity payment scales linearly. Outer sweep via --reservation-sweep."],
+      ["TOLL_CAPACITY_PAYMENT_PER_KW_MONTH", "$8/kW-mo", "SELLER-SIDE market rate (RFP didn't specify). $4.8M for 6 months at 100 MW. Midpoint of $5–$15/kW-mo SCGT range from ERCOT public IPP disclosures (Calpine/Vistra/NRG 10-Ks). Buyer-side gross toll value ~$1.1–1.4M / 6mo (this model + ltemry independent cross-check at $1.42M), so the default seller's ask doesn't clear by ~4×."],
     ],
     [3000, 1500, 4860],
   ),
@@ -413,8 +414,8 @@ const content = [
     " — daily MWh cap on Houston tolling. Three empirically-anchored brackets exposed in assumptions.py: peaker (720 MWh/day, 30 % of nameplate × 24 h — matches EIA's 9.6–14.1 % SCGT capacity-factor range), intermediate (1,500 MWh/day, ~63 % — IPP load-following toll convention, recommended headline default), and near-nameplate (2,280 MWh/day, ~95 % — availability-only haircut). --toll-cap-sweep on power_procurement_sweep.py reports marginal toll value as a function of the cap.",
   ),
   BULLET_R(
-    { text: "Capacity payment", bold: true },
-    " — TOLL_CAPACITY_PAYMENT_PER_KW_MONTH defaults to $8/kW-mo ($4.8M for the 6-month horizon at 100 MW), midpoint of the $5–$15/kW-mo SCGT range from ERCOT public IPP disclosures (Calpine/Vistra/NRG 10-Ks). The RFP doesn't specify a value. Modeled as a flat $ option premium applied at the procurement-comparison level, not as a per-MWh adder inside the LP — a real toll holder dispatches on marginal cost once capacity is sunk. Phase C's decision to enter the toll contract nets this against the option's gross marginal value.",
+    { text: "Capacity payment + reservation sizing", bold: true },
+    " — TOLL_CAPACITY_PAYMENT_PER_KW_MONTH defaults to $8/kW-mo (the SELLER-SIDE market rate, midpoint of $5–$15/kW-mo SCGT range from ERCOT public IPP disclosures). RFP doesn't specify it. The buyer's MW reservation is now a model parameter (Scenario.toll_mw_reserved): the LP caps g_toll at the reserved MW and the capacity payment scales linearly. Two sweeps in power_procurement_sweep.py: --capacity-payment-sweep varies K at fixed 100 MW (finds K* ≈ $2/kW-mo across our 4 drift scenarios); --reservation-sweep solves the LP at MW ∈ {0, 20, 40, 60, 80, 100} so the buyer's ex-ante optimal reservation can be picked at any K. Cross-check against ltemry/FTG-Final-Project independently confirms toll's gross value ≈ $1.4M / 6mo, well below $4.8M at default seller rate × 100 MW.",
   ),
   BULLET_R(
     { text: "Heat rate", bold: true },

@@ -89,13 +89,25 @@ inference**.
   The $3/MMBtu is the RFP-specified premium above Henry Hub. Used inside
   the LP — drives hour-by-hour LMP vs toll dispatch.
 - *Fixed* (capacity payment, paid for the right to call on the SCGT
-  regardless of dispatch) = `TOLL_CAPACITY_PAYMENT_PER_KW_MONTH × 100 MW
-  × 6 mo`. Default $8/kW-month → $4.8M for the 6-month horizon. Not in
-  the RFP — anchored to the $5–$15/kW-mo SCGT range from ERCOT public
-  IPP disclosures (Calpine / Vistra / NRG 10-Ks, same reference frame
-  as the daily-cap brackets). Applied at the procurement-comparison
-  level in `compute_breakdown` alongside the BESS lease — it doesn't
-  enter the LP objective because constants don't change dispatch.
+  regardless of dispatch) = `TOLL_CAPACITY_PAYMENT_PER_KW_MONTH × MW
+  reserved × 6 mo`. Default rate $8/kW-month is the **seller-side market
+  rate** anchored to the $5–$15/kW-mo SCGT capacity-payment range from
+  ERCOT public IPP disclosures (Calpine / Vistra / NRG 10-Ks). Applied at
+  the procurement-comparison level in `compute_breakdown` alongside the
+  BESS lease — it doesn't enter the LP objective because for any FIXED
+  reservation it's a constant.
+
+  The MW reservation is buyer-side: `Scenario.toll_mw_reserved` (default
+  `None` ⇒ full 100 MW for backwards compatibility). The buyer commits
+  ex ante — before the price path realizes — so the optimal reservation
+  is chosen by the OUTER sweep `power_procurement_sweep.py
+  --reservation-sweep`, not inside the LP. Cross-check: the toll's gross
+  option value at full 100 MW is ~$1.1–1.2M / 6mo across our four MC
+  drift scenarios, independently verified against ltemry/FTG-Final-Project
+  ($1.42M under HH-pricing) — both agree the toll is a small positive
+  option that doesn't clear $8/kW-mo × 100 MW = $4.8M at the seller's
+  asking price. See `--capacity-payment-sweep` for the full K × MW
+  sensitivity table.
 
 **Price input**: ERCOT 2025 DAM hourly Houston/West prices from
 `ftg_repo/data/`, shifted 1 year forward to act as a deterministic proxy
@@ -210,8 +222,14 @@ also forces a 5-day training shortfall the LP can't avoid.
    hourly between training and inference. Reality has GPU job-launch
    latency.
 5. **Tolling capacity payment not in the RFP** — defaulted to $8/kW-mo
-   ($4.8M / 6mo) per the SCGT range in ERCOT public IPP disclosures.
-   Tune via `assumptions.TOLL_CAPACITY_PAYMENT_PER_KW_MONTH`.
+   (seller-side market rate from public ERCOT SCGT IPP disclosures).
+   Two sensitivity sweeps in `power_procurement_sweep.py` quantify the
+   gap between seller's asking price and buyer's willingness-to-pay:
+   `--capacity-payment-sweep` varies K at fixed 100 MW reservation;
+   `--reservation-sweep` solves the LP at MW ∈ {0, 20, 40, 60, 80, 100}
+   so the buyer's optimal ex-ante reservation can be picked given K.
+   Independently confirmed against ltemry/FTG-Final-Project: toll value
+   ≈ $1.4M / 6mo, below the seller's $4.8M ask at 100 MW.
 6. **Training schedule degeneracy.** With saturated inference, total
    profit is *exactly invariant* to training-time placement. The
    tiebreaker placeholder makes the schedule readable; it has no

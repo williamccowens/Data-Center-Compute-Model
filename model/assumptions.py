@@ -110,17 +110,30 @@ TOLL_MAX_MW                = 100.0            # ASSUMPTION: toll covers full 100
 
 # Capacity payment for the toll option: paid for the right to call on the
 # SCGT regardless of dispatch, like an option premium. Modeled as a flat
-# $ cost over the 6-month horizon (mirrors BESS_6MO_LEASE_COST), NOT a
-# per-MWh adder — a real toll holder dispatches on marginal cost once the
-# capacity charge is sunk. $8/kW-month is the midpoint of the typical
-# $5–$15/kW-mo SCGT range in ERCOT public IPP disclosures (Calpine /
-# Vistra / NRG 10-Ks; same reference frame as the daily-cap brackets).
-# Override via assumptions if you have a deal-specific number.
+# $ cost over the 6-month horizon (mirrors BESS_6MO_LEASE_COST), scaling
+# linearly with the buyer's reserved MW (Scenario.toll_mw_reserved). NOT
+# a per-MWh adder — a real toll holder dispatches on marginal cost once
+# the capacity charge is sunk.
+#
+# $8/kW-month is the SELLER-SIDE market rate: midpoint of the typical
+# $5–$15/kW-mo SCGT capacity-payment range in ERCOT public IPP
+# disclosures (Calpine / Vistra / NRG 10-Ks; same reference frame as the
+# daily-cap brackets). This is what a Houston SCGT operator would
+# rationally ask for the option.
+#
+# The BUYER-SIDE willingness-to-pay anchor is different — the toll's
+# gross 6-month option value at full 100 MW reservation is $1.14–1.21M
+# across our four MC drift scenarios, and independently $1.42M in
+# ltemry/FTG-Final-Project. So at the seller's market rate the lease
+# costs ~4× the buyer's value and LMP-only beats LMP+toll in every
+# drift scenario. The dual sweeps in `power_procurement_sweep.py`
+# (`--capacity-payment-sweep`, `--reservation-sweep`) expose this gap.
 TOLL_CAPACITY_PAYMENT_PER_KW_MONTH = 8.0
 TOLL_6MO_CAPACITY_PAYMENT = (
     TOLL_CAPACITY_PAYMENT_PER_KW_MONTH * TOLL_MAX_MW * 1000.0 * 6.0
 )
-# = $4.8M for the 6-month horizon at the default rate
+# = $4.8M for the 6-month horizon at the default rate × full 100 MW.
+# For partial reservations use toll_6mo_capacity_payment(mw_reserved).
 
 # ── Tolling daily cap (RFP-flagged, value TBD) ────────────────────────────
 # The RFP describes tolling as "a pre-specified maximum MW-hours of power
@@ -157,9 +170,20 @@ TOLL_DAILY_CAP_NEAR_NAMEPLATE = 2280.0
 
 def tolling_cost_per_mwh(henry_hub_price: float) -> float:
     """Variable toll cost in $/MWh dispatched (fuel + $3/MMBtu RFP premium).
-    The capacity payment is a fixed $/period cost — see TOLL_6MO_CAPACITY_PAYMENT
-    — and is handled at the procurement-comparison level, not here."""
+    The capacity payment is a fixed $/period cost — see
+    toll_6mo_capacity_payment() — and is handled at the
+    procurement-comparison level, not here."""
     return TOLL_HEAT_RATE_MMBTU_PER_MWH * (henry_hub_price + TOLL_VOM_PER_MMBTU)
+
+
+def toll_6mo_capacity_payment(mw_reserved: float | None = None) -> float:
+    """6-month capacity payment for a toll reservation of `mw_reserved` MW
+    (defaults to TOLL_MAX_MW — the full 100 MW reservation). Scales
+    linearly: payment = $/kW-mo × kW × months. Use this when the buyer
+    chooses how many MW to commit to in advance — the LP doesn't decide
+    it (decision happens before path realization)."""
+    mw = TOLL_MAX_MW if mw_reserved is None else mw_reserved
+    return TOLL_CAPACITY_PAYMENT_PER_KW_MONTH * mw * 1000.0 * 6.0
 
 
 # ── BESS (RFP) ────────────────────────────────────────────────────────────
@@ -577,6 +601,17 @@ class Scenario:
     # See the TOLL_DAILY_CAP_* constants above for empirically-anchored
     # brackets (PEAKER / INTERMEDIATE / NEAR_NAMEPLATE).
     toll_max_mwh_per_day: float | None = None
+
+    # Toll MW reservation. None = use full TOLL_MAX_MW (100 MW, the
+    # backwards-compatible "buy the whole option" choice). A float in
+    # [0, TOLL_MAX_MW] models a partial reservation: the LP caps hourly
+    # g_toll at this MW value and the capacity payment scales linearly with
+    # it (K × MW × 1000 × 6 mo). Use this for option-sizing analysis — the
+    # buyer's decision is how many MW to commit to before the price path
+    # is realized, so power_procurement_sweep.py --reservation-sweep
+    # treats this as an OUTER loop (one LP solve per reservation value),
+    # NOT as an LP variable.
+    toll_mw_reserved: float | None = None
 
     def inference_rev_per_grid_mwh(self) -> float:
         blended = (
