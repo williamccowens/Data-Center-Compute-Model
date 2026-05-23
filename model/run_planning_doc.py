@@ -169,6 +169,7 @@ def phase_b_report(winner_cad: int,
     print(f"  BESS sell-to-grid revenue  {avg['rev_bess_grid_$M']:>12,.2f} $M")
     print(f"  ─ LMP power cost          −{avg['cost_lmp_$M']:>12,.2f}")
     print(f"  ─ Toll power cost         −{avg['cost_toll_$M']:>12,.2f}")
+    print(f"  ─ Toll 6-mo capacity pay  −{avg['toll_lease_$M']:>12,.2f}")
     print(f"  ─ BESS charge cost        −{avg['cost_bess_ch_$M']:>12,.2f}")
     print(f"  ─ BESS 6-mo lease         −{avg['bess_lease_$M']:>12,.2f}")
     print(f"  {'─' * 38}")

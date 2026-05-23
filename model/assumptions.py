@@ -107,7 +107,20 @@ TOLL_HEAT_RATE_BTU_PER_KWH = 9500.0           # simple-cycle peaker, RFP
 TOLL_HEAT_RATE_MMBTU_PER_MWH = TOLL_HEAT_RATE_BTU_PER_KWH * 1000.0 / 1e6  # 9.5
 TOLL_VOM_PER_MMBTU         = 3.0              # RFP: $3/MMBTU premium above HH
 TOLL_MAX_MW                = 100.0            # ASSUMPTION: toll covers full 100 MW site capacity
-TOLL_FIXED_SURCHARGE_PER_MWH = 0.0            # ASSUMPTION: fixed toll fee not specified in RFP
+
+# Capacity payment for the toll option: paid for the right to call on the
+# SCGT regardless of dispatch, like an option premium. Modeled as a flat
+# $ cost over the 6-month horizon (mirrors BESS_6MO_LEASE_COST), NOT a
+# per-MWh adder — a real toll holder dispatches on marginal cost once the
+# capacity charge is sunk. $8/kW-month is the midpoint of the typical
+# $5–$15/kW-mo SCGT range in ERCOT public IPP disclosures (Calpine /
+# Vistra / NRG 10-Ks; same reference frame as the daily-cap brackets).
+# Override via assumptions if you have a deal-specific number.
+TOLL_CAPACITY_PAYMENT_PER_KW_MONTH = 8.0
+TOLL_6MO_CAPACITY_PAYMENT = (
+    TOLL_CAPACITY_PAYMENT_PER_KW_MONTH * TOLL_MAX_MW * 1000.0 * 6.0
+)
+# = $4.8M for the 6-month horizon at the default rate
 
 # ── Tolling daily cap (RFP-flagged, value TBD) ────────────────────────────
 # The RFP describes tolling as "a pre-specified maximum MW-hours of power
@@ -143,9 +156,10 @@ TOLL_DAILY_CAP_INTERMEDIATE   = 1500.0
 TOLL_DAILY_CAP_NEAR_NAMEPLATE = 2280.0
 
 def tolling_cost_per_mwh(henry_hub_price: float) -> float:
-    """Convert a daily Henry Hub price ($/MMBtu) → all-in toll cost in $/MWh."""
-    return TOLL_HEAT_RATE_MMBTU_PER_MWH * (henry_hub_price + TOLL_VOM_PER_MMBTU) \
-         + TOLL_FIXED_SURCHARGE_PER_MWH
+    """Variable toll cost in $/MWh dispatched (fuel + $3/MMBtu RFP premium).
+    The capacity payment is a fixed $/period cost — see TOLL_6MO_CAPACITY_PAYMENT
+    — and is handled at the procurement-comparison level, not here."""
+    return TOLL_HEAT_RATE_MMBTU_PER_MWH * (henry_hub_price + TOLL_VOM_PER_MMBTU)
 
 
 # ── BESS (RFP) ────────────────────────────────────────────────────────────
@@ -580,4 +594,5 @@ if __name__ == "__main__":
     print(f"Inference rev $/compute-MWh : {INFERENCE_REV_PER_COMPUTE_MWH:,.2f}")
     print(f"Inference rev $/grid-MWh    : {INFERENCE_REV_PER_GRID_MWH:,.2f}")
     print(f"Tolling cost @ $3 HH gas    : ${tolling_cost_per_mwh(3.0):,.2f}/MWh")
+    print(f"Toll 6-mo capacity payment  : ${TOLL_6MO_CAPACITY_PAYMENT:,.0f}")
     print(f"BESS 6-mo lease cost / site : ${BESS_6MO_LEASE_COST:,.0f}")

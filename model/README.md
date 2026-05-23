@@ -84,9 +84,18 @@ schedule interpretable (see "Degeneracy" below).
 from benchlm.ai). That works out to **$166,667 of revenue per grid-MWh of
 inference**.
 
-**Tolling cost** at Houston = (HH spot + $3/MMBtu) × 9.5 MMBtu/MWh.
-The fixed surcharge above gas+O&M is not specified in the RFP and is
-defaulted to $0 — flagged in `assumptions.py` as an override knob.
+**Tolling cost** at Houston has two pieces:
+- *Variable* (per dispatched MWh) = (HH spot + $3/MMBtu) × 9.5 MMBtu/MWh.
+  The $3/MMBtu is the RFP-specified premium above Henry Hub. Used inside
+  the LP — drives hour-by-hour LMP vs toll dispatch.
+- *Fixed* (capacity payment, paid for the right to call on the SCGT
+  regardless of dispatch) = `TOLL_CAPACITY_PAYMENT_PER_KW_MONTH × 100 MW
+  × 6 mo`. Default $8/kW-month → $4.8M for the 6-month horizon. Not in
+  the RFP — anchored to the $5–$15/kW-mo SCGT range from ERCOT public
+  IPP disclosures (Calpine / Vistra / NRG 10-Ks, same reference frame
+  as the daily-cap brackets). Applied at the procurement-comparison
+  level in `compute_breakdown` alongside the BESS lease — it doesn't
+  enter the LP objective because constants don't change dispatch.
 
 **Price input**: ERCOT 2025 DAM hourly Houston/West prices from
 `ftg_repo/data/`, shifted 1 year forward to act as a deterministic proxy
@@ -200,8 +209,9 @@ also forces a 5-day training shortfall the LP can't avoid.
 4. **No ramp constraints.** Compute is treated as freely reallocable
    hourly between training and inference. Reality has GPU job-launch
    latency.
-5. **Tolling fixed surcharge not in the RFP** — defaulted to $0. Sensitivity
-   to this knob is in `assumptions.TOLL_FIXED_SURCHARGE_PER_MWH`.
+5. **Tolling capacity payment not in the RFP** — defaulted to $8/kW-mo
+   ($4.8M / 6mo) per the SCGT range in ERCOT public IPP disclosures.
+   Tune via `assumptions.TOLL_CAPACITY_PAYMENT_PER_KW_MONTH`.
 6. **Training schedule degeneracy.** With saturated inference, total
    profit is *exactly invariant* to training-time placement. The
    tiebreaker placeholder makes the schedule readable; it has no

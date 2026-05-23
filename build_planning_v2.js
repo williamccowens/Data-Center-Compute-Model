@@ -262,15 +262,15 @@ const content = [
   P("Tolling is structured as a binary period-long contract decision (`Scenario.use_houston_tolling`). When the contract is signed, the LP gets an hourly option to draw up to TOLL_MAX_MW of power at the tolling cost — exercised only when LMP > toll cost. Toll variable cost per MWh:"),
   PR({ text: "toll_cost[$/MWh] = (HH_gas[$/MMBtu] + $3/MMBtu O&M) × 9.5 MMBtu/MWh ≈ $57/MWh at $3 gas", italics: true }),
   P("Heat rate is 9,500 BTU/kWh per the RFP — typical of an efficient simple-cycle peaker. West Texas has no tolling option (no gas plant available)."),
-  P("Tolling parameters (currently default-modelled with no fixed surcharge):"),
+  P("Tolling parameters. The capacity payment is a flat $ cost over the 6-month horizon (paid for the right to call on the SCGT regardless of dispatch) — not a per-MWh adder — so it lives outside the LP and is applied at the procurement-comparison level alongside the BESS lease:"),
   buildTable(
     ["Parameter", "Default", "Notes"],
     [
       ["TOLL_HEAT_RATE_BTU_PER_KWH", "9,500", "RFP — simple-cycle peaker"],
-      ["TOLL_VOM_PER_MMBTU", "$3/MMBtu", "RFP — variable O&M premium"],
+      ["TOLL_VOM_PER_MMBTU", "$3/MMBtu", "RFP — gas premium above HH spot"],
       ["TOLL_MAX_MW", "100 MWh/hr", "Hourly cap = site grid cap (assumption)"],
       ["Scenario.toll_max_mwh_per_day", "None (unconstrained)", "Daily MWh cap on Houston toll. Empirical brackets in assumptions.py: TOLL_DAILY_CAP_PEAKER=720, _INTERMEDIATE=1500, _NEAR_NAMEPLATE=2280 (anchored to EIA SCGT capacity-factor history). --toll-cap-sweep runs all four on the sweep driver."],
-      ["TOLL_FIXED_SURCHARGE_PER_MWH", "$0", "⚠ TBD capacity payment (RFP didn't specify)"],
+      ["TOLL_CAPACITY_PAYMENT_PER_KW_MONTH", "$8/kW-mo", "Capacity payment for the toll option (RFP didn't specify). $4.8M for the 6-month horizon at 100 MW. Anchored to $5–$15/kW-mo SCGT range from ERCOT public IPP disclosures (Calpine/Vistra/NRG 10-Ks)."],
     ],
     [3000, 1500, 4860],
   ),
@@ -413,8 +413,8 @@ const content = [
     " — daily MWh cap on Houston tolling. Three empirically-anchored brackets exposed in assumptions.py: peaker (720 MWh/day, 30 % of nameplate × 24 h — matches EIA's 9.6–14.1 % SCGT capacity-factor range), intermediate (1,500 MWh/day, ~63 % — IPP load-following toll convention, recommended headline default), and near-nameplate (2,280 MWh/day, ~95 % — availability-only haircut). --toll-cap-sweep on power_procurement_sweep.py reports marginal toll value as a function of the cap.",
   ),
   BULLET_R(
-    { text: "Fixed surcharge / capacity payment", bold: true },
-    " — currently $0/MWh on the variable side and no annual fixed payment. Real tolling contracts typically include both. A non-zero fixed surcharge would change Phase C's decision about whether to sign the contract at all.",
+    { text: "Capacity payment", bold: true },
+    " — TOLL_CAPACITY_PAYMENT_PER_KW_MONTH defaults to $8/kW-mo ($4.8M for the 6-month horizon at 100 MW), midpoint of the $5–$15/kW-mo SCGT range from ERCOT public IPP disclosures (Calpine/Vistra/NRG 10-Ks). The RFP doesn't specify a value. Modeled as a flat $ option premium applied at the procurement-comparison level, not as a per-MWh adder inside the LP — a real toll holder dispatches on marginal cost once capacity is sunk. Phase C's decision to enter the toll contract nets this against the option's gross marginal value.",
   ),
   BULLET_R(
     { text: "Heat rate", bold: true },

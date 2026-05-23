@@ -238,7 +238,6 @@ def build_and_solve(
     revenue_inf = pulp.lpSum(rev_path[h] * inf[h][s] for h in hours for s in sites)
     cost_lmp    = pulp.lpSum(prices.at[h, s] * g_lmp[h][s] for h in hours for s in sites)
     cost_toll   = pulp.lpSum(toll_cost(h) * g_toll[h][s] for h in hours for s in sites)
-    bess_lease  = (len(bess_sites) * A.BESS_6MO_LEASE_COST) if use_bess else 0.0
     if use_bess:
         # BESS charge from grid costs LMP (separate meter)
         cost_bess_ch = pulp.lpSum(
@@ -258,8 +257,11 @@ def build_and_solve(
     tie_break = pulp.lpSum(
         1e-3 * prices.at[h, s] * train[h][s] for h in hours for s in sites
     )
+    # Fixed lease/capacity costs (BESS lease, toll capacity payment) are NOT
+    # in the LP objective — they don't depend on hourly dispatch and are
+    # applied at the procurement-comparison level in compute_breakdown.
     m += (revenue_inf + revenue_bess_grid
-          - cost_lmp - cost_toll - cost_bess_ch - bess_lease - tie_break)
+          - cost_lmp - cost_toll - cost_bess_ch - tie_break)
 
     m.solve(pulp.PULP_CBC_CMD(msg=solver_msg))
     status = pulp.LpStatus[m.status]
@@ -360,6 +362,8 @@ def compute_breakdown(res: SolveResult, scenario: A.Scenario) -> dict:
     cost_bess_ch = h["cost_bess_ch"].sum() if "cost_bess_ch" in h.columns else 0.0
     bess_lease   = (len(scenario.bess_sites) * A.BESS_6MO_LEASE_COST
                     if scenario.use_bess else 0.0)
+    toll_lease   = (A.TOLL_6MO_CAPACITY_PAYMENT
+                    if scenario.use_houston_tolling else 0.0)
     return {
         "rev_inf_$M":         rev_inf / 1e6,
         "rev_bess_grid_$M":   rev_bess / 1e6,
@@ -367,8 +371,9 @@ def compute_breakdown(res: SolveResult, scenario: A.Scenario) -> dict:
         "cost_toll_$M":       cost_toll / 1e6,
         "cost_bess_ch_$M":    cost_bess_ch / 1e6,
         "bess_lease_$M":      bess_lease / 1e6,
+        "toll_lease_$M":      toll_lease / 1e6,
         "profit_$M":          (rev_inf + rev_bess - cost_lmp - cost_toll
-                               - cost_bess_ch - bess_lease) / 1e6,
+                               - cost_bess_ch - bess_lease - toll_lease) / 1e6,
         "g_lmp_total_mwh":    float(h["g_lmp"].sum()),
         "g_toll_total_mwh":   float(h["g_toll"].sum()),
         "bess_ch_total_mwh":  float(h["ch"].sum())       if "ch" in h.columns else 0.0,

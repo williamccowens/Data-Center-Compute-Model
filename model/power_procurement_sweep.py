@@ -154,6 +154,7 @@ def main():
             "rev_bess_$M":   avg["rev_bess_grid_$M"],
             "lmp_cost_$M":   avg["cost_lmp_$M"],
             "toll_cost_$M":  avg["cost_toll_$M"],
+            "toll_lease_$M": avg["toll_lease_$M"],
             "bess_ch_$M":    avg["cost_bess_ch_$M"],
             "bess_lease_$M": avg["bess_lease_$M"],
             "ch_mwh":        avg["bess_ch_total_mwh"],
@@ -299,6 +300,7 @@ def main():
                 "delta_vs_lmp_$M":    float(delta.mean()),
                 "g_toll_total_mwh":   avg["g_toll_total_mwh"],
                 "toll_cost_$M":       avg["cost_toll_$M"],
+                "toll_lease_$M":      avg["toll_lease_$M"],
                 "binding_frac":       (avg["g_toll_total_mwh"]
                                         / (cap * 24 * 184) if cap else None),
                 # 184 = days in 6-month horizon; 24 = h/day. binding_frac ≈ 1

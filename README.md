@@ -403,9 +403,17 @@ from the relevant row of `fit_growth_curves.py` output.
 ### Tolling parameters
 
 Heat rate (9,500 BTU/kWh) and the $3/MMBtu Henry-Hub premium that covers
-variable O&M are RFP-firm — no additional fixed $/MWh surcharge is
-contemplated in the RFP. The only knob the RFP leaves open is the daily
-MWh cap on the contract.
+variable fuel + O&M are RFP-firm. The RFP leaves two knobs unspecified:
+
+1. **Capacity payment** for the right to call on the SCGT regardless of
+   dispatch. Modeled as `TOLL_CAPACITY_PAYMENT_PER_KW_MONTH = 8.0`
+   ($4.8M for the 6-month horizon at 100 MW), midpoint of the $5–$15
+   /kW-mo SCGT range from ERCOT public IPP disclosures (Calpine /
+   Vistra / NRG 10-Ks). Applied like the BESS lease — a flat $ cost at
+   the procurement-comparison level, not inside the LP, because it's a
+   sunk option premium that doesn't change dispatch economics. Tune via
+   `assumptions.TOLL_CAPACITY_PAYMENT_PER_KW_MONTH`.
+2. **Daily MWh cap** on the contract (next subsection).
 
 The cap is exposed as `Scenario.toll_max_mwh_per_day` (CLI flag
 `--toll-cap`) and `assumptions.py` exports three empirically-anchored
