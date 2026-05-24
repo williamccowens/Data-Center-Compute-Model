@@ -69,10 +69,26 @@ DRIFT_SCENARIOS = {
                       "desc": "Structural + full +30% Brent shock (max stress)"},
 }
 
+# Stress overlays applied to each drift scenario. "none" reproduces the
+# existing no-stress snapshots; "uri_full" overlays the FTG phase-4
+# Uri-style scarcity scenario (100 h spike window at $5K-$9K/MWh + $250
+# gas, p=0.05 per path) so the toll's tail-insurance value is visible.
+STRESS_OVERLAYS = {
+    "none":     {"desc": "no stress overlay (no-stress baseline)"},
+    "uri_full": {"desc": "FTG phase-4 Uri scenario (100h spike, $5K-9K/MWh, p=0.05)"},
+}
+
 
 def _snapshot_dir(label: str, mc: int) -> Path:
     today = date.today().isoformat()
     return SNAPS_PARENT / f"run_n{mc}_{today}_{label}"
+
+
+def _combined_label(drift_label: str, stress_label: str) -> str:
+    """Snapshot folder label combining drift + stress."""
+    if stress_label == "none":
+        return drift_label
+    return f"{drift_label}_{stress_label}"
 
 
 def _run_cmd(cmd: list[str], log_path: Path, env: dict | None = None) -> int:
@@ -113,11 +129,14 @@ def _clean_outputs() -> None:
             item.unlink()
 
 
-def run_one(label: str, gas: float, power: float, mc: int,
+def run_one(drift_label: str, gas: float, power: float, mc: int,
+             stress_label: str = "none",
              skip_sweep: bool = False) -> Path:
-    """Run the headline + sweep pipeline for one drift scenario.
+    """Run the headline + sweep pipeline for one (drift, stress) scenario.
     Returns the snapshot directory."""
-    print(f"\n{'='*78}\nSCENARIO: {label}  (gas {gas:+.1%}, power {power:+.1%})\n{'='*78}")
+    label = _combined_label(drift_label, stress_label)
+    print(f"\n{'='*78}\nSCENARIO: {label}  (gas {gas:+.1%}, power {power:+.1%}, "
+          f"stress={stress_label})\n{'='*78}")
     snapshot = _snapshot_dir(label, mc)
     snapshot.mkdir(parents=True, exist_ok=True)
 
@@ -128,6 +147,7 @@ def run_one(label: str, gas: float, power: float, mc: int,
         "--mc", str(mc),
         "--gas-drift-pct",   str(gas),
         "--power-drift-pct", str(power),
+        "--stress", stress_label,
     ]
     rc = _run_cmd(headline_cmd, snapshot / "headline_stdout.log")
     if rc != 0:
@@ -144,6 +164,7 @@ def run_one(label: str, gas: float, power: float, mc: int,
             "--capacity-payment-sweep",
             "--gas-drift-pct",   str(gas),
             "--power-drift-pct", str(power),
+            "--stress", stress_label,
         ]
         rc = _run_cmd(sweep_cmd, snapshot / "sweep_stdout.log")
         if rc != 0:
@@ -164,11 +185,17 @@ def main() -> None:
     parser.add_argument("--mc", type=int, default=50,
                         help="MC paths per scenario (default 50).")
     parser.add_argument("--skip", default="",
-                        help="Comma-separated scenarios to skip "
+                        help="Comma-separated drift labels to skip "
                              f"(any of: {', '.join(DRIFT_SCENARIOS)}).")
     parser.add_argument("--only", default="",
-                        help="Comma-separated scenarios to run "
+                        help="Comma-separated drift labels to run "
                              "(others skipped).")
+    parser.add_argument("--stress", default="none,uri_full",
+                        help="Comma-separated stress overlays to apply per "
+                             "drift label (default 'none,uri_full' = both "
+                             "no-stress and Uri-stress snapshots per drift "
+                             "= 8 scenarios total). Set to 'none' for the "
+                             "legacy 4-snapshot set.")
     parser.add_argument("--no-sweep", action="store_true",
                         help="Skip power_procurement_sweep step (headline only).")
     parser.add_argument("--skip-comparison", action="store_true",
@@ -178,27 +205,41 @@ def main() -> None:
 
     skip = {s.strip() for s in args.skip.split(",") if s.strip()}
     only = {s.strip() for s in args.only.split(",") if s.strip()}
-    scenarios = [(label, cfg["gas"], cfg["power"])
+    stress_labels = [s.strip() for s in args.stress.split(",") if s.strip()]
+    for s in stress_labels:
+        if s not in STRESS_OVERLAYS:
+            parser.error(f"Unknown stress overlay '{s}'. "
+                         f"Choices: {', '.join(STRESS_OVERLAYS)}")
+    scenarios = [(label, cfg["gas"], cfg["power"], stress)
                  for label, cfg in DRIFT_SCENARIOS.items()
+                 for stress in stress_labels
                  if label not in skip and (not only or label in only)]
     if not scenarios:
-        print("No scenarios to run (check --skip / --only).")
+        print("No scenarios to run (check --skip / --only / --stress).")
         return
 
-    print(f"Running {len(scenarios)} drift scenarios at --mc {args.mc} ...")
+    print(f"Running {len(scenarios)} (drift x stress) scenarios at "
+          f"--mc {args.mc} ...")
     t0 = time.time()
     snapshots = []
-    for label, gas, power in scenarios:
-        snap = run_one(label, gas, power, args.mc, skip_sweep=args.no_sweep)
+    for label, gas, power, stress in scenarios:
+        snap = run_one(label, gas, power, args.mc,
+                        stress_label=stress, skip_sweep=args.no_sweep)
         snapshots.append(snap)
     print(f"\nAll scenarios complete in {(time.time()-t0)/60:.1f} min.")
 
     if not args.skip_comparison:
-        print(f"\n{'='*78}\nCROSS-SNAPSHOT COMPARISON\n{'='*78}")
-        _run_cmd([sys.executable, "-X", "utf8",
-                  str(MODEL_DIR / "compare_snapshots.py")],
-                  SNAPS_PARENT / "compare_snapshots_stdout.log")
+        # One cross-snapshot comparison per stress level so the no-stress
+        # and Uri-stress sets can be read side-by-side.
+        for stress in stress_labels:
+            print(f"\n{'='*78}\nCROSS-SNAPSHOT COMPARISON (stress={stress})\n{'='*78}")
+            _run_cmd([sys.executable, "-X", "utf8",
+                      str(MODEL_DIR / "compare_snapshots.py"),
+                      "--stress", stress],
+                      SNAPS_PARENT / f"compare_snapshots_stdout_{stress}.log")
         print(f"\n{'='*78}\nVARIABLE-COST SNAPSHOT (Phase A/B pre-lease view)\n{'='*78}")
+        # Variable-cost view is built from the baseline no-stress snapshot
+        # (it's a re-framing, not a stress overlay).
         baseline_snap = _snapshot_dir("baseline", args.mc)
         if baseline_snap.exists():
             _run_cmd([sys.executable, "-X", "utf8",
@@ -209,7 +250,9 @@ def main() -> None:
             print(f"  X baseline snapshot {baseline_snap.name} not found; "
                   "skipping variable-cost snapshot.")
 
-    print("\nDone. Inspect SNAPSHOT_COMPARISON.{md,html} for the cross-snapshot view.")
+    print("\nDone. Inspect SNAPSHOT_COMPARISON.{md,html} (no-stress) and "
+          "SNAPSHOT_COMPARISON_<stress>.{md,html} (per stress level) for the "
+          "cross-snapshot views.")
 
 
 if __name__ == "__main__":

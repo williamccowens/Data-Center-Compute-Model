@@ -76,19 +76,37 @@ _SNAPSHOT_ORDER = ["baseline", "ai_structural", "mild_drift", "ai_plus_brent"]
 
 _SKIP_LABELS = {"variable_cost_view"}  # not a drift scenario; lives in its own snapshot
 
-def _discover_snapshots(parent: Path) -> list[Snapshot]:
+# Recognised stress overlays that may suffix a snapshot label
+# (e.g. "baseline_uri_full" -> drift="baseline", stress="uri_full").
+_STRESS_SUFFIXES = ("uri_full", "uri_moderate", "uri_mild")
+
+def _split_drift_stress(label: str) -> tuple[str, str]:
+    for suffix in _STRESS_SUFFIXES:
+        if label.endswith(f"_{suffix}"):
+            return label[: -(len(suffix) + 1)], suffix
+    return label, "none"
+
+
+def _discover_snapshots(parent: Path, stress_filter: str = "none"
+                         ) -> list[Snapshot]:
+    """Find run_n50_*/ subdirs whose stress suffix matches `stress_filter`.
+    Pass `stress_filter='any'` to include every stress level."""
     snaps: list[Snapshot] = []
     for d in sorted(parent.glob("run_n50_*")):
         if not d.is_dir():
             continue
-        # Label = everything after the date stamp ("run_n50_2026-05-23_X" → "X").
         parts = d.name.split("_")
         label = "_".join(parts[3:]) if len(parts) > 3 else d.name
         if label in _SKIP_LABELS:
             continue
-        gas, power = _KNOWN_DRIFT.get(label, (None, None))
-        snaps.append(Snapshot(label=label, path=d, gas_drift=gas, power_drift=power))
-    # Order by curated list when possible, then alphabetical.
+        drift_label, stress_label = _split_drift_stress(label)
+        if stress_filter != "any" and stress_label != stress_filter:
+            continue
+        gas, power = _KNOWN_DRIFT.get(drift_label, (None, None))
+        # Store the drift label as Snapshot.label so existing sort/order
+        # logic stays unchanged; stress filter has already narrowed the set.
+        snaps.append(Snapshot(label=drift_label, path=d,
+                               gas_drift=gas, power_drift=power))
     snaps.sort(key=lambda s: (_SNAPSHOT_ORDER.index(s.label)
                               if s.label in _SNAPSHOT_ORDER else 1e9, s.label))
     return snaps
@@ -429,7 +447,8 @@ hr { border: none; border-top: 1px solid #ddd; margin: 2rem 0; }
 
 
 def _build_documents(snaps: list[Snapshot], parent: Path,
-                      fig_subdir: str) -> tuple[Path, Path]:
+                      fig_subdir: str,
+                      stress_label: str = "none") -> tuple[Path, Path]:
     # Tables.
     headline_df = _build_headline(snaps)
     headline_headers, headline_rows = _headline_str_rows(headline_df)
@@ -437,16 +456,22 @@ def _build_documents(snaps: list[Snapshot], parent: Path,
     heat_headers, heat_rows = (_heatmap_str_table(heat_df) if not heat_df.empty
                                 else (None, None))
 
+    suffix = "" if stress_label == "none" else f"_{stress_label}"
+    md_name   = f"SNAPSHOT_COMPARISON{suffix}.md"
+    html_name = f"SNAPSHOT_COMPARISON{suffix}.html"
+    stress_note = ("(no stress overlay)" if stress_label == "none"
+                   else f"(stress overlay = `{stress_label}`)")
+
     # Markdown.
     md_lines: list[str] = []
-    md_lines.append("# Snapshot comparison\n")
+    md_lines.append(f"# Snapshot comparison {stress_note}\n")
     md_lines.append("Cross-scenario view of the four 50-path Monte Carlo "
                     "drift scenarios committed under "
-                    "`example_outputs_TEMPORARY/`. Each snapshot is the "
-                    "same model under a different gas / power forward-curve "
-                    "overlay. For a downloadable version that pastes cleanly "
-                    "into Word or Google Docs, open "
-                    "[`SNAPSHOT_COMPARISON.html`](./SNAPSHOT_COMPARISON.html).\n")
+                    f"`example_outputs_TEMPORARY/` {stress_note}. Each snapshot "
+                    "is the same model under a different gas / power "
+                    "forward-curve overlay. For a downloadable version that "
+                    "pastes cleanly into Word or Google Docs, open "
+                    f"[`{html_name}`](./{html_name}).\n")
     md_lines.append("## Headline profit & winners\n")
     md_lines.append("Top-line numbers per snapshot. 'Cadence profit' is "
                     "the mean over 50 paths at the winning cadence. "
@@ -486,16 +511,16 @@ def _build_documents(snaps: list[Snapshot], parent: Path,
     md_lines.append("")
     md_doc = "\n".join(md_lines)
 
-    md_path = parent / "SNAPSHOT_COMPARISON.md"
+    md_path = parent / md_name
     md_path.write_text(md_doc, encoding="utf-8")
 
     # HTML.
     html_parts: list[str] = []
     html_parts.append("<!doctype html><html lang='en'><head>")
     html_parts.append("<meta charset='utf-8'>")
-    html_parts.append("<title>Snapshot comparison</title>")
+    html_parts.append(f"<title>Snapshot comparison {stress_note}</title>")
     html_parts.append(f"<style>{_HTML_STYLE}</style></head><body>")
-    html_parts.append("<h1>Snapshot comparison</h1>")
+    html_parts.append(f"<h1>Snapshot comparison <small>{stress_note}</small></h1>")
     html_parts.append("<p class='intro'>Cross-scenario view of the four "
                       "50-path Monte Carlo drift scenarios. Each snapshot is "
                       "the same model under a different gas / power "
@@ -523,21 +548,24 @@ def _build_documents(snaps: list[Snapshot], parent: Path,
         html_parts.append(f"<img src='./{fig_subdir}/{fname}' "
                           f"alt='{html.escape(caption)}'/>")
     html_parts.append("</body></html>")
-    html_path = parent / "SNAPSHOT_COMPARISON.html"
+    html_path = parent / html_name
     html_path.write_text("\n".join(html_parts), encoding="utf-8")
 
     return md_path, html_path
 
 
 # ── Orchestrator ────────────────────────────────────────────────────────
-def compare(parent: str | Path = "example_outputs_TEMPORARY") -> list[Path]:
+def compare(parent: str | Path = "example_outputs_TEMPORARY",
+            stress_label: str = "none") -> list[Path]:
     parent = Path(parent)
     if not parent.exists():
         raise FileNotFoundError(parent)
-    snaps = _discover_snapshots(parent)
+    snaps = _discover_snapshots(parent, stress_filter=stress_label)
     if not snaps:
-        raise RuntimeError(f"No run_n50_*/ subdirs found under {parent}")
-    fig_subdir = "comparison_figures"
+        print(f"  (compare) no snapshots match stress_label='{stress_label}'")
+        return []
+    fig_subdir = ("comparison_figures" if stress_label == "none"
+                   else f"comparison_figures_{stress_label}")
     fig_dir = parent / fig_subdir
     fig_dir.mkdir(parents=True, exist_ok=True)
 
@@ -552,7 +580,8 @@ def compare(parent: str | Path = "example_outputs_TEMPORARY") -> list[Path]:
         if p:
             written.append(p)
 
-    md_path, html_path = _build_documents(snaps, parent, fig_subdir)
+    md_path, html_path = _build_documents(snaps, parent, fig_subdir,
+                                            stress_label=stress_label)
     written.extend([md_path, html_path])
     return written
 
@@ -563,8 +592,17 @@ def main() -> None:
                         default="example_outputs_TEMPORARY",
                         help="Parent directory containing run_n50_*/ "
                              "snapshots (default: example_outputs_TEMPORARY).")
+    parser.add_argument("--stress", default="none",
+                        help="Stress overlay to filter snapshots by. "
+                             "'none' (default) compares no-stress snapshots; "
+                             "'uri_full' (or other registered overlay) "
+                             "compares only that stress level. The output "
+                             "filename includes the stress label as a suffix "
+                             "(SNAPSHOT_COMPARISON_<stress>.{md,html} + "
+                             "comparison_figures_<stress>/) so multiple "
+                             "stress comparisons can coexist.")
     args = parser.parse_args()
-    paths = compare(args.parent_dir)
+    paths = compare(args.parent_dir, stress_label=args.stress)
     print(f"Wrote {len(paths)} artifacts:")
     for p in paths:
         print(f"  {p}")

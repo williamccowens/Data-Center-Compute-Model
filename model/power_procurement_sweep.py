@@ -56,6 +56,7 @@ from data import OUT_DIR
 import assumptions as A
 from monte_carlo import calibrate_and_simulate, path_to_lp_inputs
 from optimize import solve_across_paths, average_breakdowns
+from stress import inject_winter_storm, SCENARIOS as STRESS_SCENARIOS
 from tbx_swap import evaluate_swap, evaluate_x_sweep, DEFAULT_X, DEFAULT_FREQ
 
 
@@ -77,6 +78,15 @@ def main():
     p.add_argument("--power-drift-pct", type=float, default=0.0,
                    help="Forward-curve drift on ERCOT LMP (applied to both "
                         "hubs). Default: 0 (no drift).")
+    p.add_argument("--stress", default="none",
+                   choices=list(STRESS_SCENARIOS),
+                   help="Inject Uri-style winter-storm spikes into MC paths "
+                        "before optimizing (default: none). Mirrors the "
+                        "--stress flag on run_planning_doc.py so the headline "
+                        "and procurement sweep can be run under the same "
+                        "stress overlay.")
+    p.add_argument("--stress-seed", type=int, default=7,
+                   help="RNG seed for stress-injection (independent from --seed).")
     p.add_argument("--toll-cap-sweep", action="store_true",
                    help="Sweep TOLL_MAX_MWH_PER_DAY across "
                         "{peaker=720, intermediate=1500, near-nameplate=2280, "
@@ -116,6 +126,13 @@ def main():
     model, sim = calibrate_and_simulate(n_paths=args.mc, seed=args.seed,
                                          gas_drift_pct=args.gas_drift_pct,
                                          power_drift_pct=args.power_drift_pct)
+    if args.stress != "none":
+        sim = inject_winter_storm(sim, scenario_name=args.stress,
+                                    rng_seed=args.stress_seed)
+        sc = STRESS_SCENARIOS[args.stress]
+        print(f"  Stress overlay '{args.stress}' applied: "
+              f"{sc['hours']}h @ ${sc['price_range'][0]}-${sc['price_range'][1]}/MWh, "
+              f"p={sc['prob']:.2f}")
     prices_list, gas_list = [], []
     for i in range(args.mc):
         p_i, g_i = path_to_lp_inputs(sim, i)
