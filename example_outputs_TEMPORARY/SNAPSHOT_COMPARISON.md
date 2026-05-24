@@ -1,6 +1,6 @@
-# Snapshot comparison
+# Snapshot comparison (no stress overlay)
 
-Cross-scenario view of the four 50-path Monte Carlo drift scenarios committed under `example_outputs_TEMPORARY/`. Each snapshot is the same model under a different gas / power forward-curve overlay. For a downloadable version that pastes cleanly into Word or Google Docs, open [`SNAPSHOT_COMPARISON.html`](./SNAPSHOT_COMPARISON.html).
+Cross-scenario view of the four 50-path Monte Carlo drift scenarios committed under `example_outputs_TEMPORARY/` (no stress overlay). Each snapshot is the same model under a different gas / power forward-curve overlay. For a downloadable version that pastes cleanly into Word or Google Docs, open [`SNAPSHOT_COMPARISON.html`](./SNAPSHOT_COMPARISON.html).
 
 ## Headline profit & winners
 

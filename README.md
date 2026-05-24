@@ -186,7 +186,7 @@ hourly `train / inf` split — there is no separate "decider" module.
 | `python model\render_tables.py <run_dir>` | Renders every sweep / MC CSV in a snapshot folder as Markdown + HTML tables (`RESULTS_TABLES.md` + `RESULTS_TABLES.html`). HTML is browser-paste-friendly into Word / Google Docs. |
 | `python model\compare_snapshots.py` | Cross-snapshot comparison across the four drift scenarios. Builds `SNAPSHOT_COMPARISON.md/html` (headline profit + winners + breakeven K* + variable-cost winner per drift) and `comparison_figures/` (procurement Δ heatmap, sweep-curve overlays). |
 | `python model\variable_cost_snapshot.py [<source>]` | Builds the 5th "variable-cost view" snapshot from a source drift snapshot (baseline by default). Reframes Phase A/B/C without lease deductions to show the LP's raw value preference (LMP+toll+BESS both wins variable-cost; LMP-only wins full-cost, $5.78M gap at baseline). Includes an LP re-solve for the VC winner so figs 01-04 reflect the everything-on hourly pattern. |
-| `python model\run_all_drifts.py` | **"Reproduce everything" entry point.** Runs the headline + procurement sweep + post-processing pipeline for each of the four drift scenarios, copies outputs into per-scenario snapshot folders, then runs the cross-snapshot comparison + variable-cost snapshot. ~2.5 hr at `--mc 50` on a 12-core box. Supports `--mc`, `--skip`, `--only`, `--no-sweep` flags. |
+| `python model\run_all_drifts.py` | **"Reproduce everything" entry point.** Runs the headline + procurement sweep + post-processing pipeline for **8 scenarios** by default (4 drift × {`none`, `uri_full`} stress overlays — change with `--stress`). Each (drift × stress) combination writes to its own snapshot folder (`run_n50_<date>_<drift>` or `run_n50_<date>_<drift>_<stress>`). After all snapshots land, the wrapper runs `compare_snapshots` **once per stress level** so the no-stress and Uri-stress sets each have their own `SNAPSHOT_COMPARISON{,_uri_full}.{md,html}` + `comparison_figures{,_uri_full}/`. Then runs `variable_cost_snapshot` against the no-stress baseline. ~2.5 hr at `--mc 50` per (drift × stress) = ~5 hr total at `--stress none,uri_full`. Supports `--mc`, `--skip`, `--only`, `--stress`, `--no-sweep`, `--skip-comparison` flags. |
 
 ### Layout
 
@@ -217,22 +217,35 @@ pip install pandas numpy openpyxl pulp matplotlib
 
 ```powershell
 # "Reproduce everything" — runs the headline + procurement sweep + post-processing
-# pipeline for each of the four drift scenarios (baseline / ai_structural /
-# mild_drift / ai_plus_brent), copies outputs into per-scenario snapshot folders
-# under example_outputs_TEMPORARY/, then runs the cross-snapshot comparison +
-# variable-cost snapshot. ~2.5 hr at --mc 50.
+# pipeline for each (drift x stress) combination. Default is 4 drift x {none,
+# uri_full} = 8 scenarios (~5 hr at --mc 50). Each combination writes to its own
+# snapshot folder under example_outputs_TEMPORARY/. Then runs the cross-snapshot
+# comparison once per stress level (SNAPSHOT_COMPARISON{,_uri_full}.{md,html}) +
+# variable-cost snapshot.
 python model\run_all_drifts.py
 
-# Subset / smoke test:
-python model\run_all_drifts.py --mc 10                   # quick check (~30 min)
-python model\run_all_drifts.py --only baseline,mild_drift # subset
-python model\run_all_drifts.py --no-sweep                # headline only, skip procurement sweep
+# Subset / smoke test variants:
+python model\run_all_drifts.py --mc 10                   # quick check (~1 hr for all 8)
+python model\run_all_drifts.py --only baseline,mild_drift # 2 drifts x 2 stress = 4 scenarios
+python model\run_all_drifts.py --stress none              # just the 4 no-stress drift snapshots (legacy)
+python model\run_all_drifts.py --stress uri_full          # just the 4 stress-overlay snapshots
+python model\run_all_drifts.py --no-sweep                 # headline only, skip procurement sweep
+python model\run_all_drifts.py --skip-comparison          # skip cross-snapshot artifacts at end
 ```
 
-After completion, the entry point for cross-snapshot results is
-`example_outputs_TEMPORARY/SNAPSHOT_COMPARISON.md` (or `.html` for the
-paste-into-Word version). Each snapshot folder has its own
-`RESULTS_TABLES.{md,html}` + `INDEX.md` with the per-snapshot details.
+The stress overlay (`model/stress.py`) injects Uri-style scarcity windows into
+the MC paths before the LP solves: `uri_full` = 100 h spike at $5–9K/MWh + $250
+gas with p=0.05 per path. Both `run_planning_doc.py` and
+`power_procurement_sweep.py` share the same `--stress {none, mild, moderate,
+uri_full}` interface so the headline and procurement sweep see the same overlay
+within a stress snapshot.
+
+After completion, the cross-snapshot entry points are
+`example_outputs_TEMPORARY/SNAPSHOT_COMPARISON.md` (no-stress drift set) and
+`example_outputs_TEMPORARY/SNAPSHOT_COMPARISON_uri_full.md` (Uri-stress drift
+set), with `.html` versions of each for paste-into-Word use. Each snapshot
+folder has its own `RESULTS_TABLES.{md,html}` + `INDEX.md` with the per-snapshot
+details.
 
 ### See the headline result for one scenario
 
