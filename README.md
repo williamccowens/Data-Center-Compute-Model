@@ -85,7 +85,7 @@ paths under the `doc_blended` token-multiplier scheme (quality uplift ×
 | Verification | 95d confirmed under LMP-only procurement at $148,106.34M |
 | **FINAL POLICY** | **95d × LMP only → $148,106.34M mean profit** |
 
-The 95d cadence and the LMP-only procurement choice are invariant across all four committed drift scenarios (`baseline` / `ai_structural` / `mild_drift` / `ai_plus_brent` — snapshots in `example_outputs_TEMPORARY/`). Final profit spans $148,104.70M–$148,106.34M across the four (tight ~$1.6M range, drift is essentially noise at these revenue levels).
+The 95d cadence is invariant across all four committed drift scenarios (`baseline` / `ai_structural` / `mild_drift` / `ai_plus_brent` — snapshots in `example_outputs_TEMPORARY/`) under both the no-stress and the `uri_full` Uri-storm overlays. The LMP-only procurement choice is invariant only under no-stress; under `uri_full` it **flips to LMP + toll** across all four drifts (see *Uri-stress drift robustness* below). No-stress final profit spans $148,104.70M–$148,106.34M across the four (tight ~$1.6M range, drift is essentially noise at these revenue levels).
 
 **Note on the cadence-winner shift vs prior runs:** earlier runs anchored the per-release `uplift_factor` to a fixed 1.5× (and later 1.22×). These were both implicitly tied to a single cadence (the planning doc's 60-day bimonthly) and overstated per-release growth at faster cadences — which is what made 30d cadence appear optimal. Under the corrected METR-anchored cadence-dependent uplift (`metr_uplift_factor(period_days) = 2 ^ (period_days/210)`) total 6-month capability gain is essentially the same across cadences (~1.82×), so the cadence trade-off becomes purely "compute spent on training vs inference time gained." Longer cadences win because they spend less compute on training (each release's compute floor grows with date). The optimal cadence shifted from **30d → 95d**, with profit reset from a spuriously high $217B back down to $148B.
 
@@ -357,6 +357,19 @@ Phase C deltas are **essentially identical** to those under the prior 30d-winner
 | ai_plus_brent (structural+full) | 6.5 % / 4 %     | 148,104.70 | LMP only | LMP + toll + BESS both | $3.89 |
 
 Drift moves final profit by only $1.64M across the full 0 % → 6.5 % gas range — essentially noise at this revenue scale. The breakeven toll capacity-payment rate (K\*) rises modestly with drift (more volatile prices → more toll-exercise opportunity → higher gross option value), but stays well below the $8/kW-mo default seller rate in every scenario.
+
+**Uri-stress drift robustness — procurement winner flips to LMP+toll across all four drifts under `uri_full` overlay:**
+
+| Scenario | gas / power drift | Final profit ($M) | Full-cost winner | Δ vs LMP-only | Toll K\* ($/kW-mo) |
+|---|---|---:|---|---:|---:|
+| baseline                        | 0 / 0           | 148,094.77 | LMP + toll | +$2.30M | $11.83 |
+| ai_structural                   | 0.5 % / 1 %     | 148,094.42 | LMP + toll | +$2.35M | $11.92 |
+| mild_drift (~½ Brent shock)     | 3 % / 1.5 %     | 148,094.19 | LMP + toll | +$2.33M | $11.88 |
+| ai_plus_brent (structural+full) | 6.5 % / 4 %     | 148,093.26 | LMP + toll | +$2.42M | ≳$12 (exceeds sweep max) |
+
+Under Uri-style scarcity, the toll's gross option value at K=$0, 100 MW reservation triples from ~$2.21M (no-stress) to ~$7.10M, comfortably clearing the $4.80M capacity payment at $8/kW-mo. Breakeven K\* rises from ~$3.7 → ~$11.8/kW-mo (and exceeds the $12 sweep max under `ai_plus_brent`). The variable-cost winner remains **LMP + toll + BESS both** in every drift; VC gap widens from ~$5.8M (no-stress) to ~$9.1M (Uri). Cross-snapshot detail lives at `example_outputs_TEMPORARY/SNAPSHOT_COMPARISON_uri_full.{md,html}` + `comparison_figures_uri_full/`.
+
+**Per-K hourly note:** the no-stress snapshots emit three per-K regime folders (`lmp_only`, `lmp_plus_toll_100mw`, `lmp_plus_toll_60mw`) because LMP-only wins above K\*≈$3.7. The Uri-stress snapshots emit only the two `lmp_plus_toll_*` regimes — every reported K sits below K\*≈$11.8, so LMP+toll wins everywhere and the `lmp_only` regime is unreachable.
 
 **Variable-cost vs full-cost framing.** The full-cost winner ("LMP only") loses to LMP+toll+BESS-both by ~$5.8M in every drift scenario *if you strip the lease deductions*. That gap is the gross dispatch value the LP would capture if leases were free — useful sanity check that the LP genuinely values the procurement options, just not enough to clear current lease rates. See `example_outputs_TEMPORARY/run_n50_2026-05-23_variable_cost_view/` for the full breakdown (Phase A/B/C reframed).
 
