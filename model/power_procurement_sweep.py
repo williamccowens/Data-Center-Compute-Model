@@ -436,10 +436,11 @@ def main():
         print(f"CAPACITY-PAYMENT SENSITIVITY  (K swept; fixed-100MW vs "
               f"optimal-MW views)")
         print("=" * 90)
-        # K-grid: $0 (free option), $1 / $2 (near breakeven for drift cases
-        # under default RFP-firm conditions), $4.8/kW-mo equivalent is just
-        # $8 because reservation=100, $8 (seller market rate), $12 (above market).
-        K_grid = [0.0, 1.0, 2.0, 4.0, 6.0, 8.0, 12.0]
+        # K-grid: $0 (free option), $1 / $2 (well below breakeven),
+        # $2.5 / $3 / $3.5 (zoomed-in around the per-MW breakeven so the
+        # 100→0 optimal-MW transition is visible), $4 / $6 (above
+        # breakeven), $8 (seller market rate), $12 (above market).
+        K_grid = [0.0, 1.0, 2.0, 2.5, 3.0, 3.5, 4.0, 6.0, 8.0, 12.0]
         kw_per_mw = 1000.0
         horizon_mo = 6.0
 

@@ -181,6 +181,12 @@ hourly `train / inf` split — there is no separate "decider" module.
 |---|---|
 | `python model\power_procurement_sweep.py` | What is each power-procurement option worth on its own? Computes per-path paired Δprofit for all 8 combos of (toll on/off) × (BESS placement: none / Houston / West / both). Holds cadence at the headline winner so the LP variation isolates procurement value. |
 | `python model\halflife_sensitivity.py` | How sensitive is the optimal cadence to the assumed token-decay halflife? Sweeps {60, 120, 180, 270, 360, 540} days × cadence. The 270-day default is anchored to benchlm.ai's Price Index; 60 is the legacy planning-doc heuristic; 540 represents the no-decay Sonnet-tier extreme. |
+| `python model\multi_k_analysis.py <run_dir>` | What does Phase C look like at four capacity-payment rates K ($/kW-mo)? Re-evaluates the 8 procurement scenarios at K ∈ {$8 seller-side, 0.9 × K* sub-break, K_interior, $5} with the rational MW commitment per cell (bang-bang 100/0 outside the narrow ~$0.04-wide interior band; 60 MW inside it). Pure arithmetic on the existing Phase-C profits + reservation_sweep base values — no new LP solves. Emits `phase_c_multi_k_*.csv` + fig 08 (grouped bars). |
+| `python model\per_k_hourly.py <run_dir>` | What does the hourly schedule look like under each K's winning regime? For each K's (procurement, MW) winner, re-solves the LP × 50 paths and saves per-regime hourly + figs 01-04. Closes the gap that the snapshot's top-level hourly only reflects the K=$8 LMP-only winner — at sub-break K, the LP dispatches the toll in high-LMP hours, giving a materially different g_toll / g_lmp pattern. Output: `per_k/<regime>/hourly_winner_avg.csv` + `per_k/<regime>/figures/`. |
+| `python model\render_tables.py <run_dir>` | Renders every sweep / MC CSV in a snapshot folder as Markdown + HTML tables (`RESULTS_TABLES.md` + `RESULTS_TABLES.html`). HTML is browser-paste-friendly into Word / Google Docs. |
+| `python model\compare_snapshots.py` | Cross-snapshot comparison across the four drift scenarios. Builds `SNAPSHOT_COMPARISON.md/html` (headline profit + winners + breakeven K* + variable-cost winner per drift) and `comparison_figures/` (procurement Δ heatmap, sweep-curve overlays). |
+| `python model\variable_cost_snapshot.py [<source>]` | Builds the 5th "variable-cost view" snapshot from a source drift snapshot (baseline by default). Reframes Phase A/B/C without lease deductions to show the LP's raw value preference (LMP+toll+BESS both wins variable-cost; LMP-only wins full-cost, $5.78M gap at baseline). Includes an LP re-solve for the VC winner so figs 01-04 reflect the everything-on hourly pattern. |
+| `python model\run_all_drifts.py` | **"Reproduce everything" entry point.** Runs the headline + procurement sweep + post-processing pipeline for each of the four drift scenarios, copies outputs into per-scenario snapshot folders, then runs the cross-snapshot comparison + variable-cost snapshot. ~2.5 hr at `--mc 50` on a 12-core box. Supports `--mc`, `--skip`, `--only`, `--no-sweep` flags. |
 
 ### Layout
 
@@ -207,12 +213,33 @@ Final Project Planning .docx                    ← source brief from project te
 pip install pandas numpy openpyxl pulp matplotlib
 ```
 
-### See the headline result
+### Reproduce all four drift snapshots in one go
+
+```powershell
+# "Reproduce everything" — runs the headline + procurement sweep + post-processing
+# pipeline for each of the four drift scenarios (baseline / ai_structural /
+# mild_drift / ai_plus_brent), copies outputs into per-scenario snapshot folders
+# under example_outputs_TEMPORARY/, then runs the cross-snapshot comparison +
+# variable-cost snapshot. ~2.5 hr at --mc 50.
+python model\run_all_drifts.py
+
+# Subset / smoke test:
+python model\run_all_drifts.py --mc 10                   # quick check (~30 min)
+python model\run_all_drifts.py --only baseline,mild_drift # subset
+python model\run_all_drifts.py --no-sweep                # headline only, skip procurement sweep
+```
+
+After completion, the entry point for cross-snapshot results is
+`example_outputs_TEMPORARY/SNAPSHOT_COMPARISON.md` (or `.html` for the
+paste-into-Word version). Each snapshot folder has its own
+`RESULTS_TABLES.{md,html}` + `INDEX.md` with the per-snapshot details.
+
+### See the headline result for one scenario
 
 ```powershell
 # Default: Monte Carlo with N=50 paths, two-stage refined cadence search,
 # mandatory 500 MWh/day training floor, toll + BESS enabled both sites.
-# ~25 min on a 12-core box.
+# ~25 min on a 12-core box. Writes everything to model/outputs/.
 python model\run_planning_doc.py
 
 # Faster / tighter percentile variants:
@@ -309,14 +336,20 @@ Phase C deltas are **essentially identical** to those under the prior 30d-winner
 
 **Drift robustness — final policy is invariant across all four committed drift scenarios:**
 
-| Scenario | gas / power drift | Final profit ($M) | Procurement winner | Toll K\* ($/kW-mo) |
-|---|---|---:|---|---:|
-| baseline                        | 0 / 0           | 148,106.34 | LMP only | $3.68 |
-| ai_structural                   | 0.5 % / 1 %     | 148,105.93 | LMP only | $3.77 |
-| mild_drift (~½ Brent shock)     | 3 % / 1.5 %     | 148,105.72 | LMP only | $3.74 |
-| ai_plus_brent (structural+full) | 6.5 % / 4 %     | 148,104.70 | LMP only | $3.89 |
+| Scenario | gas / power drift | Final profit ($M) | Full-cost winner | Variable-cost winner | Toll K\* ($/kW-mo) |
+|---|---|---:|---|---|---:|
+| baseline                        | 0 / 0           | 148,106.34 | LMP only | LMP + toll + BESS both | $3.68 |
+| ai_structural                   | 0.5 % / 1 %     | 148,105.93 | LMP only | LMP + toll + BESS both | $3.77 |
+| mild_drift (~½ Brent shock)     | 3 % / 1.5 %     | 148,105.72 | LMP only | LMP + toll + BESS both | $3.74 |
+| ai_plus_brent (structural+full) | 6.5 % / 4 %     | 148,104.70 | LMP only | LMP + toll + BESS both | $3.89 |
 
 Drift moves final profit by only $1.64M across the full 0 % → 6.5 % gas range — essentially noise at this revenue scale. The breakeven toll capacity-payment rate (K\*) rises modestly with drift (more volatile prices → more toll-exercise opportunity → higher gross option value), but stays well below the $8/kW-mo default seller rate in every scenario.
+
+**Variable-cost vs full-cost framing.** The full-cost winner ("LMP only") loses to LMP+toll+BESS-both by ~$5.8M in every drift scenario *if you strip the lease deductions*. That gap is the gross dispatch value the LP would capture if leases were free — useful sanity check that the LP genuinely values the procurement options, just not enough to clear current lease rates. See `example_outputs_TEMPORARY/run_n50_2026-05-23_variable_cost_view/` for the full breakdown (Phase A/B/C reframed).
+
+**Multi-K Phase C view.** Each snapshot also reports Phase C at four capacity-payment rates K ∈ {$8 seller-side, 0.9 × K* sub-breakeven, K_interior, $5}, with the rational MW commitment per (scenario × K) cell. At sub-breakeven K (~$3.3), the LP commits 100 MW and `LMP + toll` wins; at K_interior (~K*) it commits 60 MW (a true interior optimum in the narrow ~$0.04-wide band where neither corner dominates); at K ≥ $5 every toll scenario collapses to 0 MW (= equivalent non-toll twin). See each snapshot's `phase_c_multi_k_*.csv` + `figures/08_multi_k_procurement_bars.png`.
+
+**Per-K hourly schedules.** The committed `hourly_winner_avg_*.csv` at the snapshot root reflects only the K=$8 winner (LMP only). For the alternative regimes (LMP+toll @ 100 MW under sub-break K, LMP+toll @ 60 MW under K_interior), see `per_k/<regime>/hourly_winner_avg.csv` + `per_k/<regime>/figures/01-04*.png`. The dispatch shapes differ materially — at 100 MW toll reservation the LP draws ~15 % of grid-MWh through the toll in high-LMP hours.
 
 ### Monte Carlo (real-options framing)
 

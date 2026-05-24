@@ -476,10 +476,48 @@ def save_hourly_schedule(winner_cad, prices_list, gas_list, scenario,
     # power cost per day, BESS dispatch + procurement mix, LMP/toll
     # overlay) into OUT_DIR/figures/ from the just-saved hourly_winner_avg.
     try:
-        from plots import make_all_plots
-        figs = make_all_plots(out_avg,
-                              out_dir=OUT_DIR / "figures",
-                              run_label=f"n{n_paths}_{scheme}_{_label(winner_cad)}")
+        from plots import make_all_plots, make_analysis_plots
+        run_label = f"n{n_paths}_{scheme}_{_label(winner_cad)}"
+        figs = make_all_plots(out_avg, out_dir=OUT_DIR / "figures",
+                              run_label=run_label)
+        # Analysis charts (5-7) pull from sweep/MC CSVs co-located in
+        # OUT_DIR; each plotter no-ops if its source CSV is missing, so
+        # this is safe whether or not the sweeps have been run.
+        figs += make_analysis_plots(OUT_DIR, out_dir=OUT_DIR / "figures",
+                                     run_label=run_label)
+        # Multi-K post-process: re-evaluate Phase C at four K rates
+        # ($8, $5, 0.9 × K*, K_interior). Pure arithmetic on existing
+        # Phase-C profits + reservation_sweep base values. Safe to call
+        # unconditionally — no-ops if its source CSVs are absent.
+        try:
+            from multi_k_analysis import run as run_multi_k
+            mk_csv, mk_fig, kstars, headline_K, k_interior = run_multi_k(OUT_DIR)
+            if headline_K is not None:
+                print(f"  Multi-K analysis: LMP+toll K* = "
+                      f"${headline_K:.3f}/kW-mo  ->  "
+                      f"sub-break K = ${0.9 * headline_K:.3f}, "
+                      f"interior K = "
+                      f"${k_interior:.3f}" if k_interior else "interior K = n/a")
+            if mk_fig:
+                figs.append(mk_fig)
+            # Per-K hourly re-solve: for each K's winning regime, re-solve
+            # the LP on all paths and save the per-regime hourly schedule
+            # + figs 01-04. Pass the in-memory paths/schedule so we don't
+            # need to regenerate them.
+            try:
+                from per_k_hourly import run as run_per_k
+                pk_paths = run_per_k(OUT_DIR,
+                                      prices_list=prices_list,
+                                      gas_list=gas_list,
+                                      schedule=A.equal_cadence_schedule(
+                                          verified_cad,
+                                          token_multiplier_scheme=args.scheme))
+                print(f"  Per-K hourly re-solve: {len(pk_paths)} artifacts "
+                      f"in {(OUT_DIR / 'per_k').name}/")
+            except FileNotFoundError as exc:
+                print(f"  (per-K skip) {exc}")
+        except FileNotFoundError:
+            pass
         print(f"  Result figures ({len(figs)}) → {(OUT_DIR / 'figures').name}/")
         for p in figs:
             print(f"    {p.name}")

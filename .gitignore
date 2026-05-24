@@ -20,3 +20,7 @@ Thumbs.db
 # Local copies of the FTG repo (cloned for data ingestion; data is now
 # vendored into ./data/)
 ftg_repo/
+
+# Local-only suggestion files + one-off helpers (don't commit)
+FINAL_REPORT_ADDITIONS.md
+_apply_docx_updates.py

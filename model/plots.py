@@ -287,6 +287,168 @@ def plot_lmp_toll_overlay(df: pd.DataFrame, out_dir: Path, run_label: str) -> Pa
     return out_path
 
 
+# ── Chart 5 — Daily power-cost fan across MC paths ───────────────────────
+def plot_power_cost_fan_daily(all_paths_path: str | Path, out_dir: Path,
+                               run_label: str) -> Path:
+    """Daily net power outlay ($K/day, both sites) with median and 5-95%
+    band over MC paths.
+
+    Inference revenue is deterministic in the LP (a function of tokens,
+    not LMP), so plotting raw profit hides the MC spread under a ~$1B/day
+    deterministic floor. Net power outlay (= LMP cost + toll cost + BESS
+    charging - BESS revenue) carries all the path-to-path variance, so
+    that's what gets fanned here.
+    """
+    cols = ["path", "datetime", "cost_lmp", "cost_toll",
+            "cost_bess_ch", "revenue_bess"]
+    df = pd.read_csv(all_paths_path, usecols=cols, parse_dates=["datetime"])
+    df["date"] = df["datetime"].dt.normalize()
+    df["net_outlay_$K"] = (df["cost_lmp"] + df["cost_toll"]
+                            + df["cost_bess_ch"] - df["revenue_bess"]) / 1e3
+    daily = df.groupby(["path", "date"])["net_outlay_$K"].sum().reset_index()
+    fan = daily.groupby("date")["net_outlay_$K"].agg(
+        p05=lambda s: s.quantile(0.05),
+        p50="median",
+        p95=lambda s: s.quantile(0.95),
+        mean="mean",
+    )
+
+    fig, ax = plt.subplots(figsize=(11, 4.5))
+    ax.fill_between(fan.index, fan["p05"], fan["p95"],
+                    color=COLOR_TRAIN, alpha=0.20, label="5-95% band")
+    ax.plot(fan.index, fan["p50"], color=COLOR_TRAIN, lw=1.8, label="Median")
+    ax.plot(fan.index, fan["mean"], color=COLOR_INF, lw=1.0, ls="--",
+            label="Mean")
+    ax.axhline(0, color="black", lw=0.5)
+    ax.set_ylabel("Daily net power outlay ($K, both sites)")
+    ax.set_xlabel("Date")
+    ax.xaxis.set_major_locator(mdates.MonthLocator())
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%b"))
+    ax.set_title(f"Daily net power outlay fan across MC paths  ({run_label})",
+                 fontsize=12)
+    ax.legend(loc="best", frameon=False)
+    out_path = out_dir / "05_power_cost_fan_daily.png"
+    fig.savefig(out_path, bbox_inches="tight")
+    plt.close(fig)
+    return out_path
+
+
+# ── Chart 6 — Capacity-payment sweep ─────────────────────────────────────
+def plot_capacity_payment_sweep(sweep_path: str | Path, out_dir: Path,
+                                 run_label: str,
+                                 anchor_K: float = 8.0) -> Path:
+    """Net delta vs LMP-only ($M) as a function of capacity payment K
+    ($/kW-mo). Two series: fixed-100MW reservation (negative-slope line
+    intercepting zero at the breakeven K) and the LP's freely-chosen
+    optimal MW. Vertical line marks the `anchor_K` ($8/kW-mo by default).
+    Right-hand axis shows the optimal MW size."""
+    sw = pd.read_csv(sweep_path)
+    fig, ax = plt.subplots(figsize=(11, 4.5))
+    ax.plot(sw["K_per_kw_month"], sw["fixed100_vs_lmp_only"],
+            color=COLOR_TOLL, lw=2.0, marker="o", ms=4,
+            label="Fixed 100 MW reservation")
+    ax.plot(sw["K_per_kw_month"], sw["optimal_vs_lmp_only"],
+            color=COLOR_TRAIN, lw=2.0, marker="s", ms=4,
+            label="LP-optimal MW")
+    ax.axhline(0, color="black", lw=0.7, label="LMP-only baseline")
+    ax.axvline(anchor_K, color="grey", lw=1.0, ls=":")
+    ax.text(anchor_K, ax.get_ylim()[1], f"  anchor\n  ${anchor_K:g}/kW-mo",
+            va="top", ha="left", fontsize=8, color="grey")
+    ax.set_xlabel("Capacity payment K  ($/kW-month)")
+    ax.set_ylabel("Net delta vs LMP-only  ($M)")
+    ax.legend(loc="upper right", frameon=False)
+
+    ax2 = ax.twinx()
+    ax2.plot(sw["K_per_kw_month"], sw["optimal_mw"],
+             color=COLOR_BESS, lw=1.2, ls="--", alpha=0.7,
+             label="Optimal MW")
+    ax2.set_ylabel("Optimal MW (right axis)", color=COLOR_BESS)
+    ax2.tick_params(axis="y", labelcolor=COLOR_BESS)
+    ax2.set_ylim(-5, max(105, sw["optimal_mw"].max() * 1.05))
+    ax2.grid(False)
+
+    fig.suptitle(f"Capacity-payment sweep  ({run_label})", fontsize=12,
+                 y=1.00)
+    out_path = out_dir / "06_capacity_payment_sweep.png"
+    fig.savefig(out_path, bbox_inches="tight")
+    plt.close(fig)
+    return out_path
+
+
+# ── Chart 7 — Procurement-scenario decomposition ─────────────────────────
+def plot_procurement_decomposition(mc_path: str | Path, out_dir: Path,
+                                    run_label: str,
+                                    baseline_scenario: str = "LMP only"
+                                    ) -> Path:
+    """Per-scenario decomposition of net delta vs the LMP-only baseline,
+    in $M. Components: BESS revenue (+), LMP-cost saved vs baseline (+),
+    toll cost (-), toll lease (-), BESS charging cost (-), BESS lease (-).
+    Net delta marked at the right of each bar."""
+    df = pd.read_csv(mc_path)
+    if baseline_scenario not in df["scenario"].values:
+        baseline_scenario = df["scenario"].iloc[0]
+    base_lmp_cost = float(df.loc[df["scenario"] == baseline_scenario,
+                                  "lmp_cost_$M"].iloc[0])
+    base_mean     = float(df.loc[df["scenario"] == baseline_scenario,
+                                  "mean_$M"].iloc[0])
+
+    rows = df[df["scenario"] != baseline_scenario].copy()
+    # Component contributions to delta vs baseline (signs already chosen
+    # so positive = adds to profit).
+    rows["d_rev_bess"]   =  rows["rev_bess_$M"]
+    rows["d_lmp_saved"]  =  base_lmp_cost - rows["lmp_cost_$M"]
+    rows["d_toll_cost"]  = -rows["toll_cost_$M"]
+    rows["d_toll_lease"] = -rows.get("toll_lease_$M", 0.0)
+    rows["d_bess_ch"]    = -rows["bess_ch_$M"]
+    rows["d_bess_lease"] = -rows["bess_lease_$M"]
+    rows["net_delta"]    =  rows["mean_$M"] - base_mean
+
+    comp_cols = ["d_rev_bess", "d_lmp_saved", "d_toll_cost",
+                 "d_toll_lease", "d_bess_ch", "d_bess_lease"]
+    comp_labels = ["BESS revenue", "LMP cost saved", "Toll cost",
+                   "Toll lease", "BESS charging", "BESS lease"]
+    comp_colors = [COLOR_BESS, COLOR_LMP, COLOR_TOLL,
+                   "#ffbb78", "#aec7e8", "#c7c7c7"]
+
+    fig, ax = plt.subplots(figsize=(11, 0.55 * len(rows) + 2.0))
+    y = np.arange(len(rows))
+    pos_left = np.zeros(len(rows))
+    neg_left = np.zeros(len(rows))
+    for col, lab, color in zip(comp_cols, comp_labels, comp_colors):
+        vals = rows[col].to_numpy()
+        pos_mask = vals >= 0
+        neg_mask = ~pos_mask
+        if pos_mask.any():
+            ax.barh(y[pos_mask], vals[pos_mask], left=pos_left[pos_mask],
+                    color=color, edgecolor="white", linewidth=0.5, label=lab)
+            pos_left[pos_mask] += vals[pos_mask]
+        if neg_mask.any():
+            ax.barh(y[neg_mask], vals[neg_mask], left=neg_left[neg_mask],
+                    color=color, edgecolor="white", linewidth=0.5,
+                    label=None if pos_mask.any() else lab)
+            neg_left[neg_mask] += vals[neg_mask]
+
+    # Net delta marker per row + label.
+    ax.scatter(rows["net_delta"], y, color="black", zorder=5, s=30,
+               marker="D", label="Net delta")
+    for i, (yv, nv) in enumerate(zip(y, rows["net_delta"])):
+        ax.text(nv, yv, f"  {nv:+.2f}", va="center", ha="left",
+                fontsize=8, color="black")
+
+    ax.axvline(0, color="black", lw=0.7)
+    ax.set_yticks(y)
+    ax.set_yticklabels(rows["scenario"].tolist())
+    ax.invert_yaxis()
+    ax.set_xlabel(f"$M vs '{baseline_scenario}' baseline")
+    ax.set_title(f"Procurement-scenario profit decomposition  ({run_label})",
+                 fontsize=12)
+    ax.legend(loc="lower right", frameon=False, fontsize=8, ncol=2)
+    out_path = out_dir / "07_procurement_decomposition.png"
+    fig.savefig(out_path, bbox_inches="tight")
+    plt.close(fig)
+    return out_path
+
+
 # ── Orchestrator ─────────────────────────────────────────────────────────
 def make_all_plots(hourly_avg_path: str | Path,
                    out_dir: str | Path | None = None,
@@ -316,11 +478,60 @@ def make_all_plots(hourly_avg_path: str | Path,
     return paths
 
 
+def _pick_latest(outputs_dir: Path, pattern: str) -> Path | None:
+    """Return the largest-n match for `pattern` in `outputs_dir`, or None.
+    'Largest n' is inferred from the file mtime — sweep/MC drivers rewrite
+    files in place, so most-recent is the right pick."""
+    matches = sorted(outputs_dir.glob(pattern), key=lambda p: p.stat().st_mtime)
+    return matches[-1] if matches else None
+
+
+def make_analysis_plots(outputs_dir: str | Path,
+                         out_dir: str | Path | None = None,
+                         run_label: str | None = None) -> list[Path]:
+    """Generate analysis charts (5-7) from the sweep/MC CSVs in
+    `outputs_dir`. Skips any chart whose source CSV is missing — useful
+    so this can run before all sweeps have been executed.
+    """
+    outputs_dir = Path(outputs_dir)
+    if out_dir is None:
+        out_dir = outputs_dir / "figures"
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    if run_label is None:
+        run_label = "analysis"
+
+    paths: list[Path] = []
+    all_paths = _pick_latest(outputs_dir, "hourly_winner_all_paths_*.csv")
+    if all_paths is not None:
+        paths.append(plot_power_cost_fan_daily(all_paths, out_dir, run_label))
+    else:
+        print("  (skip 05) no hourly_winner_all_paths_*.csv found")
+
+    cap_sweep = _pick_latest(outputs_dir, "capacity_payment_sweep_*.csv")
+    if cap_sweep is not None:
+        paths.append(plot_capacity_payment_sweep(cap_sweep, out_dir, run_label))
+    else:
+        print("  (skip 06) no capacity_payment_sweep_*.csv found")
+
+    mc = _pick_latest(outputs_dir, "power_procurement_mc_*.csv")
+    if mc is not None:
+        paths.append(plot_procurement_decomposition(mc, out_dir, run_label))
+    else:
+        print("  (skip 07) no power_procurement_mc_*.csv found")
+    return paths
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("hourly_avg_csv",
+    parser.add_argument("hourly_avg_csv", nargs="?", default=None,
                         help="Path to hourly_winner_avg_*.csv produced by "
-                             "run_planning_doc.py or run_monte_carlo.py.")
+                             "run_planning_doc.py or run_monte_carlo.py. "
+                             "Optional when --analysis-dir is given.")
+    parser.add_argument("--analysis-dir", default=None,
+                        help="If set, generate analysis charts (profit fan, "
+                             "capacity-payment sweep, procurement "
+                             "decomposition) from sweep/MC CSVs in this dir.")
     parser.add_argument("--out-dir", default=None,
                         help="Output directory for PNGs (default: "
                              "<csv_parent>/figures/).")
@@ -328,7 +539,16 @@ def main() -> None:
                         help="Title suffix for each chart (default: derived "
                              "from CSV filename).")
     args = parser.parse_args()
-    paths = make_all_plots(args.hourly_avg_csv, args.out_dir, args.label)
+    if not args.hourly_avg_csv and not args.analysis_dir:
+        parser.error("Provide hourly_avg_csv or --analysis-dir (or both).")
+
+    paths: list[Path] = []
+    if args.hourly_avg_csv:
+        paths.extend(make_all_plots(args.hourly_avg_csv, args.out_dir,
+                                     args.label))
+    if args.analysis_dir:
+        paths.extend(make_analysis_plots(args.analysis_dir, args.out_dir,
+                                          args.label))
     print(f"Wrote {len(paths)} figures:")
     for p in paths:
         print(f"  {p}")

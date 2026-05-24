@@ -51,47 +51,38 @@ full Brent shock in `../run_n50_2026-05-23_ai_plus_brent/`.
 - Phase C: Gross Houston-toll option value (LP-derived, at full 100 MW reservation) = **$2.242M / 6mo** — well below the $4.8M default capacity payment ($8/kW-mo × 100 MW × 6 mo), so LMP-only wins. The toll value is independently corroborated by `ltemry/FTG-Final-Project`'s $1.42M HH-pricing estimate (~20% gap due to scope of cost calculation + price-proxy differences).
 - Toll daily-cap sensitivity (`toll_cap_sweep_*.csv`): LP-natural toll dispatch averages ~53k MWh over the horizon; intermediate (1,500 MWh/day), near-nameplate (2,280), and uncapped all produce indistinguishable Phase C results.
 
-### Reservation-MW sensitivity (`reservation_sweep_*.csv`)
+<!-- AUTO-TABLES START -->
+## Results tables (auto-generated)
 
-Buyer-side decision: commit to MW reservation ex ante, before the price path realizes. `base_profit` is LP profit excluding the capacity payment; `lease` and `net` are at the default $8/kW-mo.
+Rendered views of every sweep / MC CSV in this folder:
 
-| MW reserved | Base profit | Lease @ $8/kW-mo | Net |
-|---:|---:|---:|---:|
-|   0 MW | $  95,044.33M | $ 0.00M | $  95,044.33M |
-|  20 MW | $  95,044.56M | $ 0.96M | $  95,043.60M |
-|  40 MW | $  95,044.79M | $ 1.92M | $  95,042.87M |
-|  60 MW | $  95,045.03M | $ 2.88M | $  95,042.15M |
-|  80 MW | $  95,045.26M | $ 3.84M | $  95,041.42M |
-| 100 MW | $  95,045.49M | $ 4.80M | $  95,040.69M |
+- **Download for Word / Google Docs** — open [`RESULTS_TABLES.html`](./RESULTS_TABLES.html) in a browser, then copy any table and paste into your doc; the structure carries over.
+- **Browse on GitHub** — [`RESULTS_TABLES.md`](./RESULTS_TABLES.md) renders the same tables inline in the repo viewer.
 
-**Optimal reservation at K=$8/kW-mo: 0 MW** (= don't sign the toll contract; LMP-only baseline is the best option). The base profit gain from going 80 MW → 100 MW is only ~$0.2M, while the lease grows by $0.96M — toll's marginal value declines fast as you add reservation MW beyond what the LP would dispatch in any hour.
+Cadence winner: **95d**.  
+Procurement winner: **LMP only**.
+<!-- AUTO-TABLES END -->
 
-### Capacity-payment sensitivity (`capacity_payment_sweep_*.csv`)
+**Optimal reservation at K=$8/kW-mo: 0 MW**. Toll's marginal value declines fast as you add reservation MW beyond what the LP would dispatch.
 
-Seller-side decision: what rate $/kW-month would the SCGT owner need to charge for the deal to clear? The two views per K are (a) **fixed 100 MW** (seller's standard take-the-whole-option offer); (b) **optimal MW** (buyer's best response from the reservation grid above).
-
-| K ($/kW-mo) | Lease @ 100 MW | Net (100 MW) vs LMP-only | Optimal MW | Net (optimal) vs LMP-only |
-|---:|---:|---:|---:|---:|
-| $ 0.00 | $ 0.00M | $ +1.161M | 100 MW | $ +1.161M |
-| $ 1.00 | $ 0.60M | $ +0.561M | 100 MW | $ +0.561M |
-| $ 2.00 | $ 1.20M | $ -0.039M |   0 MW | $ +0.000M |
-| $ 4.00 | $ 2.40M | $ -1.239M |   0 MW | $ +0.000M |
-| $ 6.00 | $ 3.60M | $ -2.439M |   0 MW | $ +0.000M |
-| $ 8.00 | $ 4.80M | $ -3.639M |   0 MW | $ +0.000M |
-| $12.00 | $ 7.20M | $ -6.039M |   0 MW | $ +0.000M |
-
-**Breakeven K\* (fixed 100 MW): $3.737/kW-month.** Above this, no MW reservation > 0 beats LMP-only — the toll's gross option value can't keep up with the lease cost at any sizing. Below it, the LP picks full 100 MW reservation (no interior optimum — LP is bang-bang in MW). The seller's $8/kW-mo default is ~4× above this breakeven, which is why LMP-only wins every drift scenario.
+**Breakeven K\* (fixed 100 MW): $3.737/kW-month** under this drift overlay — slightly higher than baseline's $3.681 because the +1.5 % LMP lift makes Houston tolling marginally more valuable. The seller's $8/kW-mo default is still ~4× above breakeven, so LMP-only wins.
 
 ---
 
 ## Figures (`figures/`)
 
-Same four charts as the baseline snapshot (`01_train_inf_diurnal.png`,
+Same seven charts as the baseline snapshot (`01_train_inf_diurnal.png`,
 `02_train_inf_cost_daily.png`, `03b_procurement_mix_daily.png`,
-`04_lmp_toll_overlay.png`). Visual differences vs baseline are subtle —
-the LMP / toll-cost overlay's average levels are lifted by ~$0.5–$1.7/MWh,
-but the diurnal shape and procurement-mix pattern are visually identical
-at this drift magnitude.
+`04_lmp_toll_overlay.png`, `06_capacity_payment_sweep.png`,
+`07_procurement_decomposition.png`, `08_multi_k_procurement_bars.png`).
+Visual differences vs baseline are subtle — the LMP / toll-cost
+overlay's average levels are lifted by ~$0.5–$1.7/MWh, but the diurnal
+shape and procurement-mix pattern are visually identical at this drift
+magnitude. The K* for this snapshot is $3.737/kW-mo (vs baseline's
+$3.681), so the multi-K bar chart's sub-break and interior K labels
+shift accordingly. The power-cost fan (`05_power_cost_fan_daily.png`)
+is omitted in every snapshot because the ~74 MB per-path hourly CSV it
+needs is not committed.
 
 For side-by-side comparison, diff the corresponding files in
 `../run_n50_2026-05-23_baseline/figures/`.
