@@ -27,7 +27,15 @@ FINAL_REPORT_EDITS.md
 FINAL_REPORT_EDITS.docx
 _apply_docx_updates.py
 _make_report_edits_docx.py
+_apply_report_footnotes.py
 
 # Word lock files (~$ prefix when a .docx is open)
 ~$*.docx
 ~$*.doc
+
+# Top-level transient stdout logs from run_all_drifts.py post-steps
+# (per-snapshot stdout logs INSIDE each snapshot folder are committed
+# alongside the snapshot for traceability; these top-level ones are
+# regenerated on every wrapper run and add no committable value)
+example_outputs_TEMPORARY/compare_snapshots_stdout*.log
+example_outputs_TEMPORARY/variable_cost_stdout.log
