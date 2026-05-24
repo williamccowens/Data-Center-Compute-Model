@@ -172,8 +172,25 @@ def run_one(drift_label: str, gas: float, power: float, mc: int,
 
     _copy_outputs(snapshot)
 
+    # Multi-K Phase C analysis (pure arithmetic on the snapshot's existing
+    # K=$8 outputs). Must run AFTER copy so power_procurement_mc_*.csv is
+    # present in the snapshot dir. The in-process hook inside
+    # run_planning_doc.py silently skips this because it runs before the
+    # power_procurement_sweep finishes — so the wrapper has to handle it.
+    _run_cmd([sys.executable, "-X", "utf8",
+              str(MODEL_DIR / "multi_k_analysis.py"), str(snapshot)],
+              snapshot / "multi_k_stdout.log")
+
+    # Per-K hourly re-solve: regenerates MC paths from run_summary.json
+    # (applying the same stress overlay the snapshot was generated with),
+    # then re-solves the LP per K-winning regime and renders figs 01-04.
+    _run_cmd([sys.executable, "-X", "utf8",
+              str(MODEL_DIR / "per_k_hourly.py"), str(snapshot)],
+              snapshot / "per_k_hourly_stdout.log")
+
     # Render the per-snapshot tables + auto-tables in INDEX.md (if INDEX
-    # is present from a previous run; otherwise harmless).
+    # is present from a previous run; otherwise harmless). Must run AFTER
+    # multi_k_analysis so phase_c_multi_k_*.csv is picked up.
     _run_cmd([sys.executable, "-X", "utf8",
               str(MODEL_DIR / "render_tables.py"), str(snapshot)],
               snapshot / "render_tables_stdout.log")

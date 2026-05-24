@@ -133,7 +133,10 @@ def regenerate_paths_from_summary(run_dir: Path
                                     ) -> tuple[list, list, A.TrainingSchedule]:
     """Regenerate prices_list / gas_list / schedule from a snapshot's
     run_summary_*.json config so we can re-solve LPs without needing the
-    raw MC paths to be committed."""
+    raw MC paths to be committed. Applies the same stress overlay the
+    snapshot was generated with (if any), so per-K hourly re-solves on a
+    `*_uri_full` snapshot see the same scarcity-spike paths the original
+    headline run saw."""
     from monte_carlo import calibrate_and_simulate, path_to_lp_inputs
     json_path = next(run_dir.glob("run_summary_*.json"), None)
     if json_path is None:
@@ -141,9 +144,13 @@ def regenerate_paths_from_summary(run_dir: Path
     j = json.loads(json_path.read_text(encoding="utf-8"))
     cfg = j["config"]
     n_paths = int(cfg["mc_paths"])
+    stress_cfg  = cfg.get("stress")
+    stress_name = (stress_cfg["scenario"] if isinstance(stress_cfg, dict)
+                                          else stress_cfg) or "none"
     print(f"  Regenerating {n_paths} MC paths "
           f"(seed={cfg['seed']}, gas_drift={cfg.get('gas_drift_pct', 0.0):+.1%}, "
-          f"power_drift={cfg.get('power_drift_pct', 0.0):+.1%}) ...")
+          f"power_drift={cfg.get('power_drift_pct', 0.0):+.1%}, "
+          f"stress={stress_name}) ...")
     model, sim = calibrate_and_simulate(
         n_paths=n_paths,
         seed=cfg["seed"],
@@ -152,6 +159,13 @@ def regenerate_paths_from_summary(run_dir: Path
         calibration_method=cfg.get("calibration_method", "tail_q"),
         tail_quantile=cfg.get("tail_quantile", 0.01),
     )
+    if stress_name != "none":
+        from stress import inject_winter_storm
+        rng_seed = (stress_cfg.get("rng_seed", 7)
+                    if isinstance(stress_cfg, dict) else 7)
+        sim = inject_winter_storm(sim, scenario_name=stress_name,
+                                    rng_seed=rng_seed)
+        print(f"  Applied stress overlay '{stress_name}' (rng_seed={rng_seed}).")
     prices_list, gas_list = [], []
     for i in range(n_paths):
         p_i, g_i = path_to_lp_inputs(sim, i)

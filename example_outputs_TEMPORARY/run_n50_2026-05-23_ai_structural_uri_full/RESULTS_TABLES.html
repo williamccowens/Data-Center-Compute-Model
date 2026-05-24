@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang='en'><head><meta charset='utf-8'>
+<title>Results tables — run_n50_2026-05-23_ai_structural_uri_full</title>
+<style>
+body { font-family: -apple-system, Segoe UI, Helvetica, Arial, sans-serif;
+       max-width: 1100px; margin: 2rem auto; padding: 0 1rem; color: #222; }
+h1 { border-bottom: 2px solid #888; padding-bottom: 0.3rem; }
+h2 { margin-top: 2.2rem; }
+p.intro { color: #555; font-size: 0.93rem; }
+table { border-collapse: collapse; margin: 0.5rem 0 2rem 0;
+        font-variant-numeric: tabular-nums; }
+th, td { border: 1px solid #bbb; padding: 4px 10px; }
+th { background: #f0f0f0; text-align: left; }
+td.r, th.r { text-align: right; }
+a.csv { font-size: 0.85rem; color: #555; margin-left: 0.5rem; }
+hr { border: none; border-top: 1px solid #ddd; margin: 2rem 0; }
+</style></head><body>
+<h1>Results tables — <code>run_n50_2026-05-23_ai_structural_uri_full</code></h1>
+<p class='intro'>Auto-generated from the sweep / MC CSVs in this folder. Select any table, copy, and paste into Word or Google Docs — both apps preserve the HTML table structure.</p>
+<h2>Cadence profit <a class='csv' href='./mc_summary_n50_doc_blended.csv'>[mc_summary_n50_doc_blended.csv]</a></h2>
+<p class='intro'>Per-cadence mean profit across 50 MC paths. Winner marked with ★.</p>
+<table>
+<thead><tr><th>Cadence</th><th class='r'>Mean</th><th class='r'>Std</th><th class='r'>p05</th><th class='r'>p95</th></tr></thead>
+<tbody>
+<tr><td>95d ★</td><td class='r'>$148,092.77M</td><td class='r'>$24.73M</td><td class='r'>$148,019.97M</td><td class='r'>$148,102.60M</td></tr>
+<tr><td>90d</td><td class='r'>$144,742.28M</td><td class='r'>$24.73M</td><td class='r'>$144,669.47M</td><td class='r'>$144,752.11M</td></tr>
+<tr><td>85d</td><td class='r'>$141,545.44M</td><td class='r'>$24.73M</td><td class='r'>$141,472.64M</td><td class='r'>$141,555.27M</td></tr>
+<tr><td>75d</td><td class='r'>$135,564.96M</td><td class='r'>$24.73M</td><td class='r'>$135,492.16M</td><td class='r'>$135,574.79M</td></tr>
+<tr><td>74d</td><td class='r'>$134,880.58M</td><td class='r'>$24.73M</td><td class='r'>$134,807.78M</td><td class='r'>$134,890.41M</td></tr>
+<tr><td>63d</td><td class='r'>$126,269.94M</td><td class='r'>$24.73M</td><td class='r'>$126,197.13M</td><td class='r'>$126,279.77M</td></tr>
+<tr><td>60d</td><td class='r'>$123,558.88M</td><td class='r'>$24.73M</td><td class='r'>$123,486.08M</td><td class='r'>$123,568.72M</td></tr>
+<tr><td>45d</td><td class='r'>$106,457.04M</td><td class='r'>$24.73M</td><td class='r'>$106,384.24M</td><td class='r'>$106,466.87M</td></tr>
+<tr><td>30d</td><td class='r'>$76,110.35M</td><td class='r'>$24.73M</td><td class='r'>$76,037.54M</td><td class='r'>$76,120.18M</td></tr>
+<tr><td>25d</td><td class='r'>$59,072.62M</td><td class='r'>$24.73M</td><td class='r'>$58,999.82M</td><td class='r'>$59,082.45M</td></tr>
+</tbody></table>
+<hr/>
+<h2>Procurement scenarios — profit <a class='csv' href='./power_procurement_mc_n50_doc_blended_c30.csv'>[power_procurement_mc_n50_doc_blended_c30.csv]</a></h2>
+<p class='intro'>8-scenario profit comparison at the locked cadence (50 MC paths). Winner marked with ★.</p>
+<table>
+<thead><tr><th>Scenario</th><th class='r'>Mean</th><th class='r'>Std</th><th class='r'>p05</th><th class='r'>p95</th><th class='r'>Δ vs LMP-only ($M)</th></tr></thead>
+<tbody>
+<tr><td>LMP + toll ★</td><td class='r'>$76,112.00M</td><td class='r'>$26.97M</td><td class='r'>$76,032.46M</td><td class='r'>$76,122.69M</td><td class='r'>+2.352</td></tr>
+<tr><td>LMP + toll + BESS West</td><td class='r'>$76,111.30M</td><td class='r'>$25.86M</td><td class='r'>$76,035.17M</td><td class='r'>$76,121.56M</td><td class='r'>+1.662</td></tr>
+<tr><td>LMP + toll + BESS Houston</td><td class='r'>$76,111.04M</td><td class='r'>$25.85M</td><td class='r'>$76,034.83M</td><td class='r'>$76,121.31M</td><td class='r'>+1.393</td></tr>
+<tr><td>LMP + toll + BESS both</td><td class='r'>$76,110.35M</td><td class='r'>$24.73M</td><td class='r'>$76,037.54M</td><td class='r'>$76,120.18M</td><td class='r'>+0.702</td></tr>
+<tr><td>LMP only</td><td class='r'>$76,109.64M</td><td class='r'>$41.64M</td><td class='r'>$75,984.73M</td><td class='r'>$76,125.52M</td><td class='r'>+0.000</td></tr>
+<tr><td>LMP + BESS West</td><td class='r'>$76,108.95M</td><td class='r'>$40.53M</td><td class='r'>$75,987.36M</td><td class='r'>$76,124.33M</td><td class='r'>-0.690</td></tr>
+<tr><td>LMP + BESS Houston</td><td class='r'>$76,108.68M</td><td class='r'>$40.52M</td><td class='r'>$75,986.87M</td><td class='r'>$76,124.09M</td><td class='r'>-0.960</td></tr>
+<tr><td>LMP + BESS both</td><td class='r'>$76,107.99M</td><td class='r'>$39.40M</td><td class='r'>$75,989.44M</td><td class='r'>$76,122.90M</td><td class='r'>-1.650</td></tr>
+</tbody></table>
+<hr/>
+<h2>Procurement scenarios — cost / revenue components <a class='csv' href='./power_procurement_mc_n50_doc_blended_c30.csv'>[power_procurement_mc_n50_doc_blended_c30.csv]</a></h2>
+<p class='intro'>Component contributions in $M, signs chosen so positive = adds to profit.</p>
+<table>
+<thead><tr><th>Scenario</th><th class='r'>BESS rev</th><th class='r'>LMP cost saved</th><th class='r'>Toll cost</th><th class='r'>Toll lease</th><th class='r'>BESS charge</th><th class='r'>BESS lease</th></tr></thead>
+<tbody>
+<tr><td>LMP only</td><td class='r'>$0.000M</td><td class='r'>$0.000M</td><td class='r'>$-0.000M</td><td class='r'>$-0.000M</td><td class='r'>$-0.000M</td><td class='r'>$-0.000M</td></tr>
+<tr><td>LMP + toll</td><td class='r'>$0.000M</td><td class='r'>$13.578M</td><td class='r'>$-6.426M</td><td class='r'>$-4.800M</td><td class='r'>$-0.000M</td><td class='r'>$-0.000M</td></tr>
+<tr><td>LMP + BESS Houston</td><td class='r'>$3.035M</td><td class='r'>$1.278M</td><td class='r'>$-0.000M</td><td class='r'>$-0.000M</td><td class='r'>$-2.272M</td><td class='r'>$-3.000M</td></tr>
+<tr><td>LMP + BESS West</td><td class='r'>$3.166M</td><td class='r'>$1.386M</td><td class='r'>$-0.000M</td><td class='r'>$-0.000M</td><td class='r'>$-2.242M</td><td class='r'>$-3.000M</td></tr>
+<tr><td>LMP + BESS both</td><td class='r'>$6.773M</td><td class='r'>$2.091M</td><td class='r'>$-0.000M</td><td class='r'>$-0.000M</td><td class='r'>$-4.514M</td><td class='r'>$-6.000M</td></tr>
+<tr><td>LMP + toll + BESS Houston</td><td class='r'>$4.032M</td><td class='r'>$13.859M</td><td class='r'>$-6.426M</td><td class='r'>$-4.800M</td><td class='r'>$-2.272M</td><td class='r'>$-3.000M</td></tr>
+<tr><td>LMP + toll + BESS West</td><td class='r'>$3.140M</td><td class='r'>$14.990M</td><td class='r'>$-6.426M</td><td class='r'>$-4.800M</td><td class='r'>$-2.242M</td><td class='r'>$-3.000M</td></tr>
+<tr><td>LMP + toll + BESS both</td><td class='r'>$7.567M</td><td class='r'>$14.876M</td><td class='r'>$-6.426M</td><td class='r'>$-4.800M</td><td class='r'>$-4.514M</td><td class='r'>$-6.000M</td></tr>
+</tbody></table>
+<hr/>
+<h2>Phase C at three capacity-payment rates (rational MW commitment) <a class='csv' href='./phase_c_multi_k_n50_doc_blended_c30.csv'>[phase_c_multi_k_n50_doc_blended_c30.csv]</a></h2>
+<p class='intro'>8 procurement scenarios × 3 capacity-payment rates ($/kW-mo): the seller-side $8, the per-snapshot sub-breakeven 0.9 × K*, and a $5 lower-estimate. For each (scenario × K) cell, MW = 100 if committing to the full toll reservation beats walking away at that K, else MW = 0 (the toll row collapses to its non-toll twin&#x27;s profit). Winner per K marked with ★.</p>
+<table>
+<thead><tr><th>Scenario</th><th class='r'>MW @ K=$11.92</th><th class='r'>Mean @ K=$11.92</th><th class='r'>Δ vs LMP-only</th><th class='r'>MW @ K=$10.73</th><th class='r'>Mean @ K=$10.73</th><th class='r'>Δ vs LMP-only</th><th class='r'>MW @ K=$8.00</th><th class='r'>Mean @ K=$8.00</th><th class='r'>Δ vs LMP-only</th><th class='r'>MW @ K=$5.00</th><th class='r'>Mean @ K=$5.00</th><th class='r'>Δ vs LMP-only</th></tr></thead>
+<tbody>
+<tr><td>LMP + toll</td><td class='r'>60 MW</td><td class='r'>$76,109.65M ★</td><td class='r'>+0.005</td><td class='r'>100 MW</td><td class='r'>$76,110.36M ★</td><td class='r'>+0.715</td><td class='r'>100 MW</td><td class='r'>$76,112.00M ★</td><td class='r'>+2.352</td><td class='r'>100 MW</td><td class='r'>$76,113.80M ★</td><td class='r'>+4.152</td></tr>
+<tr><td>LMP only</td><td class='r'>n/a</td><td class='r'>$76,109.64M</td><td class='r'>+0.000</td><td class='r'>n/a</td><td class='r'>$76,109.64M</td><td class='r'>+0.000</td><td class='r'>n/a</td><td class='r'>$76,109.64M</td><td class='r'>+0.000</td><td class='r'>n/a</td><td class='r'>$76,109.64M</td><td class='r'>+0.000</td></tr>
+<tr><td>LMP + toll + BESS West</td><td class='r'>60 MW</td><td class='r'>$76,108.96M</td><td class='r'>-0.685</td><td class='r'>100 MW</td><td class='r'>$76,109.67M</td><td class='r'>+0.025</td><td class='r'>100 MW</td><td class='r'>$76,111.30M</td><td class='r'>+1.662</td><td class='r'>100 MW</td><td class='r'>$76,113.10M</td><td class='r'>+3.462</td></tr>
+<tr><td>LMP + BESS West</td><td class='r'>n/a</td><td class='r'>$76,108.95M</td><td class='r'>-0.690</td><td class='r'>n/a</td><td class='r'>$76,108.95M</td><td class='r'>-0.690</td><td class='r'>n/a</td><td class='r'>$76,108.95M</td><td class='r'>-0.690</td><td class='r'>n/a</td><td class='r'>$76,108.95M</td><td class='r'>-0.690</td></tr>
+<tr><td>LMP + toll + BESS Houston</td><td class='r'>60 MW</td><td class='r'>$76,108.69M</td><td class='r'>-0.954</td><td class='r'>100 MW</td><td class='r'>$76,109.40M</td><td class='r'>-0.244</td><td class='r'>100 MW</td><td class='r'>$76,111.04M</td><td class='r'>+1.393</td><td class='r'>100 MW</td><td class='r'>$76,112.84M</td><td class='r'>+3.193</td></tr>
+<tr><td>LMP + BESS Houston</td><td class='r'>n/a</td><td class='r'>$76,108.68M</td><td class='r'>-0.960</td><td class='r'>n/a</td><td class='r'>$76,108.68M</td><td class='r'>-0.960</td><td class='r'>n/a</td><td class='r'>$76,108.68M</td><td class='r'>-0.960</td><td class='r'>n/a</td><td class='r'>$76,108.68M</td><td class='r'>-0.960</td></tr>
+<tr><td>LMP + toll + BESS both</td><td class='r'>60 MW</td><td class='r'>$76,108.00M</td><td class='r'>-1.645</td><td class='r'>100 MW</td><td class='r'>$76,108.71M</td><td class='r'>-0.935</td><td class='r'>100 MW</td><td class='r'>$76,110.35M</td><td class='r'>+0.702</td><td class='r'>100 MW</td><td class='r'>$76,112.15M</td><td class='r'>+2.502</td></tr>
+<tr><td>LMP + BESS both</td><td class='r'>n/a</td><td class='r'>$76,107.99M</td><td class='r'>-1.650</td><td class='r'>n/a</td><td class='r'>$76,107.99M</td><td class='r'>-1.650</td><td class='r'>n/a</td><td class='r'>$76,107.99M</td><td class='r'>-1.650</td><td class='r'>n/a</td><td class='r'>$76,107.99M</td><td class='r'>-1.650</td></tr>
+</tbody></table>
+<hr/>
+<h2>Procurement scenarios — paired Δprofit vs LMP-only <a class='csv' href='./power_procurement_deltas_n50_doc_blended.csv'>[power_procurement_deltas_n50_doc_blended.csv]</a></h2>
+<p class='intro'>Per-path paired delta vs the LMP-only baseline ($M). Same MC paths, so this is a cleaner Δ than subtracting the marginal means above.</p>
+<table>
+<thead><tr><th>Scenario</th><th class='r'>Δ mean</th><th class='r'>Δ std</th><th class='r'>Δ p05</th><th class='r'>Δ p95</th></tr></thead>
+<tbody>
+<tr><td>LMP only</td><td class='r'>+0.000</td><td class='r'>+0.000</td><td class='r'>+0.000</td><td class='r'>+0.000</td></tr>
+<tr><td>LMP + toll</td><td class='r'>+2.352</td><td class='r'>+14.689</td><td class='r'>-2.940</td><td class='r'>+45.771</td></tr>
+<tr><td>LMP + BESS Houston</td><td class='r'>-0.960</td><td class='r'>+1.132</td><td class='r'>-1.419</td><td class='r'>+2.433</td></tr>
+<tr><td>LMP + BESS West</td><td class='r'>-0.690</td><td class='r'>+1.119</td><td class='r'>-1.221</td><td class='r'>+2.646</td></tr>
+<tr><td>LMP + BESS both</td><td class='r'>-1.650</td><td class='r'>+2.247</td><td class='r'>-2.614</td><td class='r'>+4.978</td></tr>
+<tr><td>LMP + toll + BESS Houston</td><td class='r'>+1.393</td><td class='r'>+15.811</td><td class='r'>-4.342</td><td class='r'>+48.266</td></tr>
+<tr><td>LMP + toll + BESS West</td><td class='r'>+1.662</td><td class='r'>+15.804</td><td class='r'>-4.083</td><td class='r'>+48.440</td></tr>
+<tr><td>LMP + toll + BESS both</td><td class='r'>+0.702</td><td class='r'>+16.926</td><td class='r'>-5.489</td><td class='r'>+50.935</td></tr>
+</tbody></table>
+<hr/>
+<h2>Reservation-MW sweep <a class='csv' href='./reservation_sweep_n50_doc_blended_c30.csv'>[reservation_sweep_n50_doc_blended_c30.csv]</a></h2>
+<p class='intro'>Buyer-side decision: how much Houston toll MW to commit ex ante, before MC paths realize. Net = base profit − lease at default $8/kW-mo. ★ marks the best.</p>
+<table>
+<thead><tr><th>MW reserved</th><th class='r'>Base profit (excl. lease)</th><th class='r'>Base std</th><th class='r'>Lease @ $8/kW-mo</th><th class='r'>Net</th></tr></thead>
+<tbody>
+<tr><td>0 MW</td><td class='r'>$76,109.64M</td><td class='r'>$41.64M</td><td class='r'>$0.00M</td><td class='r'>$76,109.64M</td></tr>
+<tr><td>20 MW</td><td class='r'>$76,111.08M</td><td class='r'>$38.71M</td><td class='r'>$0.96M</td><td class='r'>$76,110.12M</td></tr>
+<tr><td>40 MW</td><td class='r'>$76,112.51M</td><td class='r'>$35.77M</td><td class='r'>$1.92M</td><td class='r'>$76,110.59M</td></tr>
+<tr><td>60 MW</td><td class='r'>$76,113.94M</td><td class='r'>$32.84M</td><td class='r'>$2.88M</td><td class='r'>$76,111.06M</td></tr>
+<tr><td>80 MW</td><td class='r'>$76,115.37M</td><td class='r'>$29.91M</td><td class='r'>$3.84M</td><td class='r'>$76,111.53M</td></tr>
+<tr><td>100 MW ★</td><td class='r'>$76,116.80M</td><td class='r'>$26.97M</td><td class='r'>$4.80M</td><td class='r'>$76,112.00M</td></tr>
+</tbody></table>
+<hr/>
+<h2>Capacity-payment sweep <a class='csv' href='./capacity_payment_sweep_n50_doc_blended_c30.csv'>[capacity_payment_sweep_n50_doc_blended_c30.csv]</a></h2>
+<p class='intro'>Seller-side rate sensitivity. The &#x27;optimal MW&#x27; column is the buyer&#x27;s best response from the reservation sweep. Breakeven K* is where Δ (fixed 100 MW) crosses zero.</p>
+<table>
+<thead><tr><th>K ($/kW-mo)</th><th class='r'>Lease @ 100 MW</th><th class='r'>Δ (fixed 100 MW) vs LMP-only</th><th class='r'>Optimal MW</th><th class='r'>Δ (optimal) vs LMP-only</th></tr></thead>
+<tbody>
+<tr><td>$0.00</td><td class='r'>$0.00M</td><td class='r'>+7.152</td><td class='r'>100 MW</td><td class='r'>+7.152</td></tr>
+<tr><td>$1.00</td><td class='r'>$0.60M</td><td class='r'>+6.552</td><td class='r'>100 MW</td><td class='r'>+6.552</td></tr>
+<tr><td>$2.00</td><td class='r'>$1.20M</td><td class='r'>+5.952</td><td class='r'>100 MW</td><td class='r'>+5.952</td></tr>
+<tr><td>$2.50</td><td class='r'>$1.50M</td><td class='r'>+5.652</td><td class='r'>100 MW</td><td class='r'>+5.652</td></tr>
+<tr><td>$3.00</td><td class='r'>$1.80M</td><td class='r'>+5.352</td><td class='r'>100 MW</td><td class='r'>+5.352</td></tr>
+<tr><td>$3.50</td><td class='r'>$2.10M</td><td class='r'>+5.052</td><td class='r'>100 MW</td><td class='r'>+5.052</td></tr>
+<tr><td>$4.00</td><td class='r'>$2.40M</td><td class='r'>+4.752</td><td class='r'>100 MW</td><td class='r'>+4.752</td></tr>
+<tr><td>$6.00</td><td class='r'>$3.60M</td><td class='r'>+3.552</td><td class='r'>100 MW</td><td class='r'>+3.552</td></tr>
+<tr><td>$8.00</td><td class='r'>$4.80M</td><td class='r'>+2.352</td><td class='r'>100 MW</td><td class='r'>+2.352</td></tr>
+<tr><td>$12.00</td><td class='r'>$7.20M</td><td class='r'>-0.048</td><td class='r'>0 MW</td><td class='r'>+0.000</td></tr>
+</tbody></table>
+<hr/>
+<h2>Toll daily-cap sweep <a class='csv' href='./toll_cap_sweep_n50_doc_blended_c30.csv'>[toll_cap_sweep_n50_doc_blended_c30.csv]</a></h2>
+<p class='intro'>4-bracket sensitivity to the SCGT daily-output cap. &#x27;Hours binding&#x27; = fraction of LP hours where the cap was active.</p>
+<table>
+<thead><tr><th>Bracket</th><th class='r'>Cap (MWh/day)</th><th class='r'>Mean profit</th><th class='r'>Δ vs LMP-only</th><th class='r'>Toll MWh dispatched</th><th class='r'>Toll cost</th><th class='r'>Hours binding</th></tr></thead>
+<tbody>
+<tr><td>peaker (720)</td><td class='r'>720</td><td class='r'>$76,109.02M</td><td class='r'>-0.625</td><td class='r'>59,030</td><td class='r'>$4.115M</td><td class='r'>1.9%</td></tr>
+<tr><td>intermediate (1500)</td><td class='r'>1,500</td><td class='r'>$76,110.84M</td><td class='r'>+1.197</td><td class='r'>73,405</td><td class='r'>$5.597M</td><td class='r'>1.1%</td></tr>
+<tr><td>near-nameplate (2280)</td><td class='r'>2,280</td><td class='r'>$76,111.89M</td><td class='r'>+2.250</td><td class='r'>75,697</td><td class='r'>$6.337M</td><td class='r'>0.8%</td></tr>
+<tr><td>uncapped (None)</td><td class='r'>uncapped</td><td class='r'>$76,112.00M</td><td class='r'>+2.352</td><td class='r'>75,765</td><td class='r'>$6.426M</td><td class='r'></td></tr>
+</tbody></table>
+<hr/>
+<h2>TBx swap valuation (primary x) <a class='csv' href='./tbx_swap_primary_n50.csv'>[tbx_swap_primary_n50.csv]</a></h2>
+<p class='intro'>Virtual BESS via TBx swap at the primary spread multiplier. Breakeven = expected floating leg; net = floating mean − fixed payment, both quoted against the $3M/site/6-mo physical lease so the head-to-head is direct.</p>
+<table>
+<thead><tr><th>Site</th><th class='r'>x</th><th>Settlement</th><th class='r'>E[floating]</th><th class='r'>Std</th><th class='r'>p05</th><th class='r'>p95</th><th class='r'>Breakeven fixed</th><th class='r'>Fixed payment</th><th class='r'>Net @ phys lease</th></tr></thead>
+<tbody>
+<tr><td>HOUSTON</td><td class='r'>4</td><td>D</td><td class='r'>$1.870M</td><td class='r'>$1.077M</td><td class='r'>$1.432M</td><td class='r'>$4.943M</td><td class='r'>$1.870M</td><td class='r'>$3.000M</td><td class='r'>$-1.130M</td></tr>
+<tr><td>WEST</td><td class='r'>4</td><td>D</td><td class='r'>$2.127M</td><td class='r'>$1.072M</td><td class='r'>$1.607M</td><td class='r'>$5.251M</td><td class='r'>$2.127M</td><td class='r'>$3.000M</td><td class='r'>$-0.873M</td></tr>
+</tbody></table>
+<hr/>
+<h2>TBx x-sensitivity <a class='csv' href='./tbx_swap_xsweep_n50.csv'>[tbx_swap_xsweep_n50.csv]</a></h2>
+<p class='intro'>Floating-leg value at x ∈ {1, 2, 4, 8} per site.</p>
+<table>
+<thead><tr><th>Site</th><th class='r'>x</th><th>Settlement</th><th class='r'>E[floating]</th><th class='r'>p05</th><th class='r'>p95</th><th class='r'>Breakeven fixed</th><th class='r'>Net @ phys lease</th></tr></thead>
+<tbody>
+<tr><td>HOUSTON</td><td class='r'>1</td><td>D</td><td class='r'>$0.603M</td><td class='r'>$0.476M</td><td class='r'>$1.518M</td><td class='r'>$0.603M</td><td class='r'>$-2.397M</td></tr>
+<tr><td>HOUSTON</td><td class='r'>2</td><td>D</td><td class='r'>$1.107M</td><td class='r'>$0.863M</td><td class='r'>$2.835M</td><td class='r'>$1.107M</td><td class='r'>$-1.893M</td></tr>
+<tr><td>HOUSTON</td><td class='r'>4</td><td>D</td><td class='r'>$1.870M</td><td class='r'>$1.432M</td><td class='r'>$4.943M</td><td class='r'>$1.870M</td><td class='r'>$-1.130M</td></tr>
+<tr><td>HOUSTON</td><td class='r'>8</td><td>D</td><td class='r'>$2.759M</td><td class='r'>$2.079M</td><td class='r'>$7.489M</td><td class='r'>$2.759M</td><td class='r'>$-0.241M</td></tr>
+<tr><td>WEST</td><td class='r'>1</td><td>D</td><td class='r'>$0.680M</td><td class='r'>$0.524M</td><td class='r'>$1.595M</td><td class='r'>$0.680M</td><td class='r'>$-2.320M</td></tr>
+<tr><td>WEST</td><td class='r'>2</td><td>D</td><td class='r'>$1.252M</td><td class='r'>$0.960M</td><td class='r'>$3.001M</td><td class='r'>$1.252M</td><td class='r'>$-1.748M</td></tr>
+<tr><td>WEST</td><td class='r'>4</td><td>D</td><td class='r'>$2.127M</td><td class='r'>$1.607M</td><td class='r'>$5.251M</td><td class='r'>$2.127M</td><td class='r'>$-0.873M</td></tr>
+<tr><td>WEST</td><td class='r'>8</td><td>D</td><td class='r'>$3.119M</td><td class='r'>$2.308M</td><td class='r'>$7.926M</td><td class='r'>$3.119M</td><td class='r'>$0.119M</td></tr>
+</tbody></table>
+<hr/>
+<h2>Physical vs virtual BESS <a class='csv' href='./phys_vs_virt_bess_n50.csv'>[phys_vs_virt_bess_n50.csv]</a></h2>
+<p class='intro'>LP-dispatched physical BESS vs TBx-swap virtual BESS, both net of $3M/site/6-mo lease where applicable.</p>
+<table>
+<thead><tr><th>Site</th><th class='r'>Physical net</th><th class='r'>Virtual floating</th><th class='r'>Virtual breakeven</th><th class='r'>Virtual net @ $3M</th><th class='r'>Phys − Virt</th></tr></thead>
+<tbody>
+<tr><td>HOUSTON</td><td class='r'>$-1.870M</td><td class='r'>$1.870M</td><td class='r'>$1.870M</td><td class='r'>$-1.130M</td><td class='r'>-0.741</td></tr>
+<tr><td>WEST</td><td class='r'>$-1.870M</td><td class='r'>$2.127M</td><td class='r'>$2.127M</td><td class='r'>$-0.873M</td><td class='r'>-0.998</td></tr>
+</tbody></table>
+</body></html>
