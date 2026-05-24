@@ -15,8 +15,8 @@ The top-level [README.md](../README.md) has the full phase ordering. Briefly:
 |---|---|
 | `assumptions.py` | Every numeric input + Scenario flags + schedule generators + date→params→FLOPS→cMWh projection chain + cadence filter |
 | `data.py` | Price-panel loaders (`load_price_panel` proxy + `load_historical_panel` for OU calibration), DST-corrected |
-| `calibration.py` | Seasonal log-OU fit (ported from `ltemry/FTG-Final-Project`) |
-| `monte_carlo.py` | `simulate_paths` path generator + `calibrate_and_simulate` one-stop helper + `path_to_lp_inputs` LP adapter + `apply_drift` for forward-curve drift |
+| `calibration.py` | Seasonal log-OU fit (ported from `ltemry/FTG-Final-Project`). σ fit target is configurable via `calibration_method`: `"mle"` (default, matches the port) or `"tail_q"` (anchors σ to empirical residual at `tail_quantile` to restore HB_WEST lower-tail mass — same model class, different fit target). |
+| `monte_carlo.py` | `simulate_paths` path generator + `calibrate_and_simulate` one-stop helper + `path_to_lp_inputs` LP adapter + `apply_drift` for forward-curve drift. `calibrate_and_simulate` threads `calibration_method` / `tail_quantile` through to the calibration step. |
 
 **Phase 1 — Pre-flight:**
 
@@ -29,7 +29,7 @@ The top-level [README.md](../README.md) has the full phase ordering. Briefly:
 | File | Purpose |
 |---|---|
 | `optimize.py` | **The LP.** `build_and_solve(prices, gas, scenario, schedule)` — see top-level [README](../README.md) for decision variables / constraints / objective. Called N times by the driver (once per MC path). |
-| `run_planning_doc.py` | **Headline driver.** Default: Monte Carlo with **N=50 paths × cadence cartesian** (~25 min), picks cadence with highest *mean profit across paths*. Stage 2 refines around the winner. `--mc 100` for tighter percentiles, `--mc 10` for a quick check, `--mc 0` for single-path deterministic. Drift overlays: `--gas-drift-pct` / `--power-drift-pct`. Calls `plots.py` at end of run. |
+| `run_planning_doc.py` | **Headline driver.** Default: Monte Carlo with **N=50 paths × cadence cartesian** (~25 min), picks cadence with highest *mean profit across paths*. Stage 2 refines around the winner. `--mc 100` for tighter percentiles, `--mc 10` for a quick check, `--mc 0` for single-path deterministic. Drift overlays: `--gas-drift-pct` / `--power-drift-pct`. Calibration: `--calibration {mle|tail_q}` (default `mle`, matches ltemry port; `tail_q --tail-quantile 0.01` restores HB_WEST negative-hour frequency). Calls `plots.py` at end of run. |
 | `run_monte_carlo.py` | Single-cadence MC at higher N — faster when cadence comparison not needed |
 | `plots.py` | Four result charts (train/inf diurnal, attributed power cost per day, BESS dispatch + procurement mix, LMP/toll overlay). Reads `hourly_winner_avg_*.csv`, writes PNGs to `outputs/figures/`. Runs automatically from `run_planning_doc.py`; also callable standalone. |
 
@@ -286,8 +286,13 @@ floor). v2/v3 implement the planning doc's full framework instead:
   in the schedule, the LP must spend the required compute (×PUE = grid MWh)
   on training during `[window_start, release_date)`.
 - Outside any training window, training is fixed to 0.
-- Inference revenue per hour decays as `0.5^(days_since_last_release/60)`,
-  starting from peak ($166,667/grid-MWh) at horizon start.
+- Inference revenue per hour decays as `0.5^(days_since_last_release/halflife)`,
+  starting from peak ($166,667/grid-MWh) at horizon start. The
+  `TOKEN_PRICE_HALFLIFE_DAYS` default is **270 days**, anchored to
+  benchlm.ai's LLM Pricing Trends Price Index (94.5 % decline March
+  2023 → April 2026 ≈ log₂(100/5.5) halvings / 37 mo). The legacy
+  planning-doc heuristic was 60 days (~4.5× faster), now retained as
+  the fast-decay extreme in `halflife_sensitivity.py`.
 
 This makes **the training schedule itself a decision** — we solve the LP
 under each candidate schedule and pick the winner.
@@ -299,26 +304,27 @@ match the planning doc's stated R1-R5 numerical values. R1 at 6/1/2026
 projects 1.02T params (vs doc's 1.29T), 6.6e10 petaFLOPS, **36,289 cMWh**
 of training compute. At 100% compute on both sites this takes ~10 days.
 
-#### `doc_blended` scheme (1.5× quality uplift per release × 60-day market decay)
+#### `doc_blended` scheme (METR-anchored cadence-dependent uplift × 270-day market decay, all-on procurement)
 
-| Schedule | # releases | Train (gMWh) | Inf (gMWh) | End rev mult. | Profit ($M) |
-|---|---:|---:|---:|---:|---:|
-| **every_30d (monthly)** ⭐ | **7** | **460,665** | **415,096** | **1.39×** | **96,003** |
-| every_45d | 5 | 311,831 | 563,930 | 0.62× | 92,205 |
-| every_60d (= planning-doc bimonthly) | 4 | 237,586 | 638,174 | 0.41× | 87,815 |
-| every_90d | 3 | 163,699 | 712,062 | 0.27× | 83,066 |
-| every_180d | 2 | 91,296 | 784,464 | 0.18× | 78,958 |
-| no_training | 0 | 0 | 878,400 | 0.12× | 61,211 |
+Phase A ranking from `run_planning_doc.py --mc 50` against the 2026-05-23 defaults
+(`metr_uplift_factor(period_days) = 2 ^ (period_days/210)` × `TOKEN_PRICE_HALFLIFE_DAYS=270`):
 
-**Monthly retraining still wins** at $96.0B, but only by $3.8B vs every_45d
-and $8.2B vs planning-doc bimonthly — much tighter than under the
-post-2010 fit because training itself is now ~7× more expensive in
-compute. Under monthly cadence, R7 alone needs 64K cMWh in its 30-day
-window, consuming ~55% of available compute and crowding out inference.
+| Schedule | Mean profit ($M) | std | Per-release uplift |
+|---|---:|---:|---:|
+| **every_95d** ⭐ | **148,101.32** | 1.25 | 1.371× |
+| every_90d | 144,750.82 | 1.25 | 1.346× |
+| every_85d | 141,553.99 | 1.25 | 1.321× |
+| every_75d | 135,573.50 | 1.25 | 1.273× |
+| every_74d | 134,889.12 | 1.25 | 1.268× |
+| every_63d | 126,278.48 | 1.25 | 1.229× |
+| every_60d (= planning-doc bimonthly) | 123,567.43 | 1.25 | 1.219× |
+| every_45d | 106,465.59 | 1.25 | 1.160× |
+| every_30d (monthly) | 76,118.89 | 1.25 | 1.105× |
+| every_25d | 59,081.16 | 1.25 | 1.087× |
 
-The diminishing-returns curve is now clearly visible: each step from
-180d → 90d → 60d → 45d → 30d adds compounding revenue but also stacks
-training cost. Past some cadence, more retraining hurts.
+**Quarterly retraining wins** at 95-day cadence. Longer cadences dominate because under cadence-dependent METR uplift the total 6-month capability gain is essentially fixed (~1.82× regardless of cadence), so the trade-off reduces to "compute spent on training vs inference time gained." Faster cadences burn more compute on training without proportional revenue gain. The cadence-vs-cadence gaps are still huge relative to MC noise (~$1M path-stdev), so the cadence decision is robust at N=50.
+
+This is a meaningful shift from the legacy fixed-uplift configurations: under fixed `uplift_factor=1.5` (planning-doc heuristic) the per-release multiplier compounded as `1.5^k`, artificially inflating short cadences. The METR-consistent uplift caps total compounding to what capability growth actually delivers over the 6-month horizon.
 
 The planning doc's literal bimonthly cadence still underperforms the
 optimal monthly cadence — by $8.2B under `doc_blended`. The exact
@@ -354,7 +360,7 @@ across the plausible range, and monotonic in the right direction.
 | **Initial release uses 100% compute** | ✅ R1 window has `is_initial=True`, LP forbids inference. R1 finishes in 2 days at full 160 MW-compute. |
 | **Token cost / price schedule per release** | ✅ `TrainingRun.token_revenue_multiplier`; built-in schemes: `constant`, `quality_uplift`, `market_decay`, `doc_blended`. |
 | Hardware: SXM vs PCIe split + sustained TF/s | `H100_SXM_SUSTAINED_TFLOPS_PER_SEC=500`, `H100_PCIE_SUSTAINED_TFLOPS_PER_SEC=380`, `SXM_FRACTION_DEFAULT=0.60`. Drives `FLOPS_PER_COMPUTE_MWH` directly. |
-| Token price "halves every couple of months" | 60-day exponential decay between releases; both `halflife` and per-release multipliers tunable. |
+| Token price decay between releases | Default halflife **270 days**, anchored to [benchlm.ai LLM Pricing Trends](https://benchlm.ai/llm-pricing-trends) (94.5 % index decline March 2023 → April 2026). Planning-doc heuristic "halving every couple of months" (= 60 days) retained as fast-decay extreme in the sweep. `halflife` and per-release multipliers both tunable. |
 | Tokens/MWh inference conversion | RFP-stated 5T tokens/day @ 80MW used directly. |
 | BESS option: power DC OR sell to grid | ✅ Discharge split `dis_dc` (replaces grid draw) + `dis_grid` (sold at LMP). BESS has its own grid connection so charging is independent of DC's 100 MW cap. |
 | Bimonthly base case (R1–R4 specific dates) | `planning_doc_schedule()`. |

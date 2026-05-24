@@ -1,0 +1,101 @@
+model,creator,inputPrice,outputPrice,contextWindow,sourceType,release_date,is_estimated,source
+1-bit Bonsai 1.7B,Prism ML,0.0,0.0,32K,Open Weight,,,
+1-bit Bonsai 4B,Prism ML,0.0,0.0,32K,Open Weight,,,
+1-bit Bonsai 8B,Prism ML,0.0,0.0,64K,Open Weight,,,
+Aion-2.0,Aion Labs,0.8,1.6,128K,Proprietary,,,
+Claude 3 Haiku,Anthropic,0.25,1.25,200K,Proprietary,2024-03-13,False,https://www.anthropic.com/news/claude-3-haiku
+Claude 3 Opus,Anthropic,15.0,75.0,200K,Proprietary,2024-03-04,False,https://www.anthropic.com/news/claude-3-family
+Claude 3.5 Sonnet,Anthropic,3.0,15.0,200K,Proprietary,2024-06-20,False,https://www.anthropic.com/news/claude-3-5-sonnet
+Claude 4 Sonnet,Anthropic,3.0,15.0,200K,Proprietary,2025-05-22,False,https://www.anthropic.com/news/claude-4
+Claude 4.1 Opus,Anthropic,15.0,75.0,200K,Proprietary,2025-08-05,False,https://www.anthropic.com/news/claude-opus-4-1
+Claude 4.1 Opus Thinking,Anthropic,,,200K,Proprietary,2025-08-05,False,https://www.anthropic.com/news/claude-opus-4-1
+Claude Haiku 4.5,Anthropic,1.0,5.0,200K,Proprietary,2025-10-15,False,https://www.anthropic.com/news/claude-haiku-4-5
+Claude Mythos Preview,Anthropic,25.0,125.0,1M,Proprietary,,,
+Claude Opus 4.5,Anthropic,5.0,25.0,200K,Proprietary,2025-11-24,False,https://www.anthropic.com/news/claude-opus-4-5
+Claude Opus 4.6,Anthropic,5.0,25.0,1M,Proprietary,,,
+Claude Opus 4.7,Anthropic,5.0,25.0,1M,Proprietary,2026-04-16,False,https://www.anthropic.com/news
+Claude Opus 4.7 (Adaptive),Anthropic,5.0,25.0,1M,Proprietary,,,
+Claude Sonnet 4.5,Anthropic,3.0,15.0,200K,Proprietary,2025-09-29,False,https://www.anthropic.com/news/claude-sonnet-4-5
+Claude Sonnet 4.6,Anthropic,3.0,15.0,200K,Proprietary,,,
+Command A+,Cohere,2.5,10.0,128K,Open Weight,,,
+Composer 2,Cursor,0.5,2.5,200K,Proprietary,,,
+Composer 2.5,Cursor,0.5,2.5,200K,Proprietary,,,
+DBRX Instruct,Databricks,0.0,0.0,32K,Open Weight,2024-03-27,False,https://www.databricks.com/blog/introducing-dbrx-new-state-art-open-llm
+DeepSeek Coder 2.0,DeepSeek,,,128K,Open Weight,2024-06-17,False,https://github.com/deepseek-ai/DeepSeek-Coder-V2
+DeepSeek LLM 2.0,DeepSeek,0.0,0.0,128K,Open Weight,2024-05-06,False,https://github.com/deepseek-ai/DeepSeek-V2
+DeepSeek R1,DeepSeek,0.55,2.19,128K,Open Weight,,,
+DeepSeek R1 Distill Qwen 32B,DeepSeek,0.0,0.0,128K,Open Weight,2025-01-20,False,https://api-docs.deepseek.com/news/news250120
+DeepSeek V3,DeepSeek,0.27,1.1,128K,Open Weight,,,
+DeepSeek V3.1,DeepSeek,0.0,0.0,128K,Open Weight,2025-08-19,False,https://api-docs.deepseek.com/news/news250821
+DeepSeek V3.1 (Reasoning),DeepSeek,0.0,0.0,128K,Open Weight,2025-08-19,False,https://api-docs.deepseek.com/news/news250821
+DeepSeek V3.2,DeepSeek,0.28,0.42,128K,Open Weight,2025-09-29,False,https://api-docs.deepseek.com/news/news250929
+DeepSeek V3.2 (Thinking),DeepSeek,0.55,2.19,128K,Open Weight,2025-09-29,False,https://api-docs.deepseek.com/news/news250929
+DeepSeek V4 Flash,DeepSeek,0.14,0.28,1M,Open Weight,,,
+DeepSeek V4 Flash (High),DeepSeek,0.14,0.28,1M,Open Weight,,,
+DeepSeek V4 Flash (Max),DeepSeek,0.14,0.28,1M,Open Weight,,,
+DeepSeek V4 Flash Base,DeepSeek,,,1M,Open Weight,,,
+DeepSeek V4 Pro,DeepSeek,1.74,3.48,1M,Open Weight,,,
+DeepSeek V4 Pro (High),DeepSeek,1.74,3.48,1M,Open Weight,,,
+DeepSeek V4 Pro (Max),DeepSeek,1.74,3.48,1M,Open Weight,,,
+DeepSeek V4 Pro Base,DeepSeek,,,1M,Open Weight,,,
+DeepSeekMath V2,DeepSeek,0.0,0.0,128K,Open Weight,,,
+Gemini 1.0 Pro,Google,,,32K,Proprietary,2023-12-13,False,https://blog.google/technology/ai/google-gemini-ai/
+Gemini 1.5 Pro,Google,1.25,5.0,1M,Proprietary,2024-04-09,False,https://blog.google/technology/ai/google-gemini-update-flash-ai-assistant-io-2024/
+Gemini 2.5 Flash,Google,0.3,2.5,1M,Proprietary,2025-04-17,False,https://blog.google/products/gemini/gemini-2-5-flash-preview/
+Gemini 2.5 Pro,Google,1.25,10.0,1M,Proprietary,2025-03-25,False,https://blog.google/technology/google-deepmind/gemini-model-thinking-updates-march-2025/
+Gemini 3 Flash,Google,0.5,3.0,1M,Proprietary,,,
+Gemini 3 Pro,Google,2.0,12.0,2M,Proprietary,2025-11-18,False,https://blog.google/products/gemini/gemini-3/
+Gemini 3 Pro Deep Think,Google,,,2M,Proprietary,2025-11-18,False,https://blog.google/products/gemini/gemini-3/
+Gemini 3.1 Flash-Lite,Google,0.25,1.5,1M,Proprietary,,,
+Gemini 3.1 Pro,Google,2.0,12.0,1M,Proprietary,,,
+Gemini 3.5 Flash,Google,1.5,9.0,1M,Proprietary,,,
+Gemma 3 27B,Google,0.0,0.0,32K,Open Weight,2025-03-12,False,https://blog.google/technology/developers/gemma-3/
+Gemma 4 26B A4B,Google,0.0,0.0,256K,Open Weight,,,
+Gemma 4 31B,Google,0.0,0.0,256K,Open Weight,,,
+Gemma 4 E2B,Google,0.0,0.0,128K,Open Weight,,,
+Gemma 4 E4B,Google,0.0,0.0,128K,Open Weight,,,
+GLM-4.5,Z.AI,0.6,2.2,128K,Proprietary,,,
+GLM-4.5-Air,Z.AI,0.2,1.1,128K,Proprietary,2025-07-28,False,https://z.ai/blog/glm-4.5
+GLM-4.7,Z.AI,0.0,0.0,200K,Open Weight,,,
+GLM-4.7-Flash,Z.AI,0.0,0.0,200K,Open Weight,,,
+GLM-5,Z.AI,1.0,3.2,200K,Open Weight,,,
+GLM-5 (Reasoning),Z.AI,1.0,3.2,200K,Open Weight,,,
+GLM-5-Turbo,Z.AI,1.2,4.0,200K,Proprietary,,,
+GLM-5.1,Z.AI,1.4,4.4,203K,Open Weight,,,
+GLM-5V-Turbo,Z.AI,1.2,4.0,200K,Proprietary,,,
+GPT-4 Turbo,OpenAI,10.0,30.0,128K,Proprietary,2023-11-06,False,https://openai.com/index/new-models-and-developer-products-announced-at-devday/
+GPT-4.1,OpenAI,2.0,8.0,1M,Proprietary,2025-04-14,False,https://openai.com/index/gpt-4-1/
+GPT-4.1 mini,OpenAI,0.4,1.6,1M,Proprietary,2025-04-14,False,https://openai.com/index/gpt-4-1/
+GPT-4.1 nano,OpenAI,0.1,0.4,1M,Proprietary,2025-04-14,False,https://openai.com/index/gpt-4-1/
+GPT-4o,OpenAI,2.5,10.0,128K,Proprietary,2024-05-13,False,https://openai.com/index/hello-gpt-4o/
+GPT-4o mini,OpenAI,0.15,0.6,128K,Proprietary,2024-07-18,False,https://openai.com/index/gpt-4o-mini-advancing-cost-efficient-intelligence/
+GPT-5 (high),OpenAI,1.25,10.0,400K,Proprietary,2025-08-07,False,https://openai.com/index/introducing-gpt-5/
+GPT-5 (medium),OpenAI,,,128K,Proprietary,2025-08-07,False,https://openai.com/index/introducing-gpt-5/
+GPT-5 mini,OpenAI,0.25,2.0,128K,Proprietary,2025-08-07,False,https://openai.com/index/introducing-gpt-5/
+GPT-5 nano,OpenAI,0.05,0.4,400K,Proprietary,2025-08-07,False,https://openai.com/index/introducing-gpt-5/
+GPT-5.1,OpenAI,1.25,10.0,400K,Proprietary,2025-11-12,False,https://openai.com/index/gpt-5-1/
+GPT-5.1-Codex-Max,OpenAI,1.25,10.0,400K,Proprietary,2025-11-19,False,https://openai.com/index/gpt-5-1-codex-max/
+GPT-5.2,OpenAI,1.75,14.0,400K,Proprietary,,,
+GPT-5.2 Instant,OpenAI,1.5,6.0,128K,Proprietary,,,
+GPT-5.2 Pro,OpenAI,25.0,150.0,400K,Proprietary,,,
+GPT-5.2-Codex,OpenAI,1.75,14.0,400K,Proprietary,,,
+GPT-5.3 Codex,OpenAI,1.75,14.0,400K,Proprietary,,,
+GPT-5.3 Instant,OpenAI,1.75,14.0,128K,Proprietary,,,
+GPT-5.3-Codex-Spark,OpenAI,,,256K,Proprietary,,,
+GPT-5.4,OpenAI,2.5,15.0,1.05M,Proprietary,,,
+GPT-5.4 mini,OpenAI,0.75,4.5,400K,Proprietary,,,
+GPT-5.4 nano,OpenAI,0.2,1.25,400K,Proprietary,,,
+GPT-5.4 Pro,OpenAI,30.0,180.0,1.05M,Proprietary,,,
+GPT-5.5,OpenAI,5.0,30.0,1M,Proprietary,,,
+GPT-5.5 Pro,OpenAI,30.0,180.0,1M,Proprietary,,,
+GPT-OSS 120B,OpenAI,0.0,0.0,128K,Open Weight,,,
+GPT-OSS 20B,OpenAI,0.0,0.0,128K,Open Weight,,,
+Granite-4.0-1B,IBM,0.0,0.0,128K,Open Weight,2025-10-02,True,https://www.ibm.com/new/announcements/ibm-granite-4-0-hyper-efficient-high-performance-hybrid-models
+Granite-4.0-350M,IBM,0.0,0.0,32K,Open Weight,2025-10-02,True,https://www.ibm.com/new/announcements/ibm-granite-4-0-hyper-efficient-high-performance-hybrid-models
+Granite-4.0-H-1B,IBM,0.0,0.0,128K,Open Weight,2025-10-02,True,https://www.ibm.com/new/announcements/ibm-granite-4-0-hyper-efficient-high-performance-hybrid-models
+Granite-4.0-H-350M,IBM,0.0,0.0,32K,Open Weight,2025-10-02,True,https://www.ibm.com/new/announcements/ibm-granite-4-0-hyper-efficient-high-performance-hybrid-models
+Grok 3 [Beta],xAI,,,128K,Proprietary,2025-02-17,False,https://x.ai/news/grok-3
+Grok 3 Mini,xAI,0.3,0.5,128K,Proprietary,2025-02-17,False,https://x.ai/news/grok-3
+Grok 4,xAI,,,128K,Proprietary,,,
+Grok 4.1,xAI,,,1M,Proprietary,,,
+Grok 4.1 Fast,xAI,0.2,0.5,2M,Proprietary,,,

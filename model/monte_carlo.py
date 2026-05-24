@@ -154,6 +154,8 @@ def calibrate_and_simulate(n_paths: int,
                            horizon_end:   pd.Timestamp = pd.Timestamp("2026-12-01"),
                            gas_drift_pct: float = 0.0,
                            power_drift_pct: float = 0.0,
+                           calibration_method: str = "tail_q",
+                           tail_quantile: float = 0.01,
                            ) -> tuple[JointModel, SimResult]:
     """One-stop: load 2025 historical → calibrate seasonal OU → simulate
     `n_paths` forward paths over [horizon_start, horizon_end).
@@ -162,12 +164,20 @@ def calibrate_and_simulate(n_paths: int,
     on top of the OU long-run mean (see ``apply_drift``). Zero by default,
     so the existing MC behaviour is unchanged.
 
+    ``calibration_method`` selects the σ fit: ``"tail_q"`` (default;
+    anchors σ to the empirical residual at ``tail_quantile``, default
+    1st-pct, restoring HB_WEST lower-tail mass absorbed by the seasonal
+    table) or ``"mle"`` (residual-std fit, identical to the
+    ltemry/FTG-Final-Project port — retained for parity comparisons).
+
     Returns (calibrated_model, simulation_result). Used by both the MC
     driver (run_monte_carlo.py) and the MC mode of the headline driver
     (run_planning_doc.py --mc N) so there's exactly one MC code path.
     """
     hist_h, hist_g = load_historical_panel()
-    model = calibrate_joint(hist_h, hist_g)
+    model = calibrate_joint(hist_h, hist_g,
+                            calibration_method=calibration_method,
+                            tail_quantile=tail_quantile)
     if gas_drift_pct or power_drift_pct:
         model = apply_drift(model, gas_drift_pct=gas_drift_pct,
                             power_drift_pct=power_drift_pct, in_place=True)

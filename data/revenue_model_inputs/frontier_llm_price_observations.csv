@@ -1,0 +1,11 @@
+provider,model,release_date,input_usd_per_1m,output_usd_per_1m,doc_blended_80in_20out_usd_per_1m,source
+OpenAI,GPT-4 8K,2023-03-14,30,60,36,https://help.openai.com/en/articles/7127956-how-much-does-gpt-4-cost
+OpenAI,GPT-4 Turbo,2023-11-06,10,30,14,https://help.openai.com/en/articles/7127956-how-much-does-gpt-4-cost
+Anthropic,Claude 3 Opus,2024-03-04,15,75,27,https://www.anthropic.com/research/claude-3-family
+OpenAI,GPT-4o,2024-05-13,5,15,7,https://community.openai.com/t/announcing-gpt-4o-in-the-api/744700
+Anthropic,Claude 3.5 Sonnet,2024-06-20,3,15,5.4,https://www.anthropic.com/news/claude-3-5-sonnet
+Anthropic,Claude 3.7 Sonnet,2025-02-24,3,15,5.4,https://www.anthropic.com/news/claude-3-7-sonnet
+Google,Gemini 2.5 Pro,2025-04-04,1.25,10,3,https://techcrunch.com/2025/04/04/gemini-2-5-pro-is-googles-most-expensive-ai-model-yet/
+Anthropic,Claude Sonnet 4,2025-05-22,3,15,5.4,https://www.anthropic.com/news/claude-4
+OpenAI,GPT-5,2025-08-07,1.25,10,3,https://openai.com/index/introducing-gpt-5-for-developers
+OpenAI,GPT-5.4 Pro,current,30,180,60,https://developers.openai.com/api/docs/models/gpt-5.4-pro

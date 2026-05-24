@@ -1,8 +1,13 @@
 """
 Sensitivity on the token-price half-life.
 
-Planning doc says "halving every couple of months". We test 30, 45, 60,
-90, 120-day half-lives to see how the optimal retrain cadence shifts.
+Sweep range brackets the empirically defensible region. The default
+halflife in `assumptions.py` (270 days) is anchored to benchlm.ai's
+LLM Pricing Trends Price Index (94.5 % decline from March 2023 to
+April 2026 = log2(100/5.5) ≈ 4.18 halvings over ~37 months). The
+planning doc's prior 60-day heuristic is included as the fast-decay
+extreme; 540 days is the slow-decay extreme (matches Anthropic Sonnet
+tier, which shows essentially no measurable decay over 16 months).
 """
 from __future__ import annotations
 import sys
@@ -19,7 +24,7 @@ def main():
     prices, gas = load_price_panel()
     scen = A.Scenario(use_houston_tolling=True, use_bess=False)
     cadences = [30, 45, 60, 90, 180]
-    halflives = [30, 45, 60, 90, 120]
+    halflives = [60, 120, 180, 270, 360, 540]
 
     grid = []
     for hl in halflives:

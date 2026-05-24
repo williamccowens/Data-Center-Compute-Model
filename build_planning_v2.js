@@ -212,13 +212,13 @@ const content = [
     ["Scheme", "Multiplier rule", "Captures"],
     [
       ["constant", "1.0 for every release", "No generation-over-generation differentiation; only the decay sawtooth matters"],
-      ["quality_uplift", "uplift_factor^k for release k", "Each new release captures more value because it's a better model"],
-      ["market_decay", "0.5^(release_t_days/60)", "Each new release earns less because the consumer market price has fallen"],
+      ["quality_uplift", "uplift_factor^k for release k, with uplift_factor = 2^(period_days/210) (METR-anchored, cadence-dependent)", "Each new release captures more value because it's a better model"],
+      ["market_decay", "0.5^(release_t_days/TOKEN_PRICE_HALFLIFE_DAYS), default halflife = 270 d", "Each new release earns less because the consumer market price has fallen"],
       ["doc_blended", "quality_uplift × market_decay", "Planning-doc story: quality rises but market deflates simultaneously"],
     ],
     [1500, 3000, 4860],
   ),
-  P("Default for the headline run is `doc_blended` with `uplift_factor = 1.5`."),
+  P("Default for the headline run is `doc_blended`. The uplift_factor is now CADENCE-DEPENDENT — assumptions.metr_uplift_factor(period_days) = 2 ** (period_days / 210), anchored to METR's 7-month task-length doubling (https://metr.org/blog/2025-03-19-measuring-ai-ability-to-complete-long-tasks/). Concrete values: 30d → 1.105×; 60d → 1.219×; 90d → 1.346×. The earlier fixed 1.5 / 1.22 defaults were implicitly tied to a single cadence."),
 
   H3("Revenue at the hour level"),
   P("Total inference revenue per hour at a site, given the LP picked inf grid-MWh of inference:"),

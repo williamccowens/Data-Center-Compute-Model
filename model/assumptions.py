@@ -277,14 +277,64 @@ def min_feasible_cadence_days(release_date: date,
     return cmwh / max_per_day
 
 
-# ── Token-price decay (planning doc) ──────────────────────────────────────
-# Planning doc: "token costs (for the consumer) seem to be halving every
-# couple of months (revenue per token dropping)". We model frontier-tier
-# revenue per token as halving every TOKEN_PRICE_HALFLIFE_DAYS days SINCE
-# THE LAST RELEASE. Each new model release resets the clock back to peak.
-# At horizon start we assume the operator's deployed model is frontier
-# (t-since-release = 0 ⇒ no decay applied at hour 0).
-TOKEN_PRICE_HALFLIFE_DAYS = 60.0
+# ── Token-price decay ─────────────────────────────────────────────────────
+# We model frontier-tier revenue per token as halving every
+# TOKEN_PRICE_HALFLIFE_DAYS days SINCE THE LAST RELEASE. Each new model
+# release resets the clock back to peak. At horizon start we assume the
+# operator's deployed model is frontier (t-since-release = 0 ⇒ no decay
+# applied at hour 0).
+#
+# Default 270 days anchored to the benchlm.ai LLM Pricing Trends index:
+# the curated frontier Price Index fell from 100 (GPT-4 launch March 2023)
+# to 5.5 (April 2026) — a 94.5 % decline over ~37 months, equivalent to
+# log2(100/5.5) ≈ 4.18 halvings, i.e. halflife ≈ 37/4.18 ≈ 8.85 months
+# ≈ 270 days. See https://benchlm.ai/llm-pricing-trends.
+#
+# The planning doc's "halving every couple of months" heuristic (60 days)
+# is ~4.5× faster than this empirical anchor. Sensitivity is bracketed in
+# halflife_sensitivity.py over {60, 120, 180, 270, 360, 540}.
+TOKEN_PRICE_HALFLIFE_DAYS = 270.0
+
+
+# ── Per-release quality uplift ────────────────────────────────────────────
+# Each new model release captures higher revenue-per-MWh than the previous
+# because the customer base shifts toward higher-value tasks (longer
+# agentic chains, more reasoning tokens, expanded context windows) — even
+# as the LIST price per token falls. With infinite demand we capture this
+# net effect via a per-release uplift multiplier applied to the deployed
+# model's peak revenue.
+#
+# We anchor to METR's measured AI task-length doubling rate of ~7 months
+# (Apr-2025 study, frontier-model agents through Nov 2025; see
+# https://metr.org/blog/2025-03-19-measuring-ai-ability-to-complete-long-tasks).
+# CAPABILITY_DOUBLING_DAYS = 210 means "capability doubles every 210 days".
+#
+# The per-release uplift_factor is CADENCE-DEPENDENT to stay METR-consistent
+# across the cadence sweep: a faster cadence ships less capability gain
+# PER release (but more releases). The single conversion is
+#     uplift_factor = 2 ** (period_days / CAPABILITY_DOUBLING_DAYS)
+# computed inside the schedule constructors when the caller doesn't pass
+# an explicit uplift_factor. Concrete values at common cadences:
+#     30d  -> 1.105×  (the model's optimal cadence under doc_blended)
+#     60d  -> 1.219×  (planning-doc bimonthly, METR-anchored anchor point)
+#     90d  -> 1.346×
+# The earlier fixed UPLIFT_FACTOR_DEFAULT = 1.22 was implicitly anchored
+# to 60d cadence and overstated the per-release growth at the actual
+# 30d optimum. Bracket from a16z 2024 enterprise survey (2-5× annual
+# spend growth): translated to 30d cadence, 1.06× – 1.14×.
+CAPABILITY_DOUBLING_DAYS = 210.0
+
+
+def metr_uplift_factor(period_days: float,
+                       doubling_days: float = CAPABILITY_DOUBLING_DAYS) -> float:
+    """METR-anchored per-release quality uplift for a given cadence.
+
+    Capability doubles every ``doubling_days`` (default 210 = 7 months).
+    Per-release uplift = 2 ** (period_days / doubling_days). At 30-day
+    cadence this is ~1.105×; at 60-day it is ~1.219× (the legacy point
+    estimate).
+    """
+    return 2.0 ** (period_days / doubling_days)
 
 
 @dataclass
@@ -413,7 +463,7 @@ def _initial_R1_duration_days(sxm_fraction: float = SXM_FRACTION_DEFAULT) -> int
 def _per_release_multipliers(release_dates: List[date],
                              scheme: str,
                              *,
-                             uplift_factor: float = 1.5,
+                             uplift_factor: float,
                              halflife_days: float = TOKEN_PRICE_HALFLIFE_DAYS
                             ) -> List[float]:
     """Build per-release token-revenue multipliers.
@@ -444,7 +494,7 @@ def _per_release_multipliers(release_dates: List[date],
 def planning_doc_schedule(horizon_end: date = HORIZON_END,
                           sxm_fraction: float = SXM_FRACTION_DEFAULT,
                           token_multiplier_scheme: str = "constant",
-                          uplift_factor: float = 1.5,
+                          uplift_factor: float | None = None,
                           ) -> TrainingSchedule:
     """Planning-doc-style bimonthly schedule.
 
@@ -457,6 +507,9 @@ def planning_doc_schedule(horizon_end: date = HORIZON_END,
     hold under the doc's assumed 21-day R1 — at smaller param projections
     R1 finishes sooner, which slides every subsequent release earlier in
     lock-step.
+
+    ``uplift_factor`` defaults to the METR-anchored cadence-dependent
+    value via ``metr_uplift_factor(60)`` ≈ 1.219.
     """
     sch = equal_cadence_schedule(
         period_days=60,
@@ -474,7 +527,7 @@ def equal_cadence_schedule(period_days: int,
                            horizon_end:   date = HORIZON_END,
                            sxm_fraction:  float = SXM_FRACTION_DEFAULT,
                            token_multiplier_scheme: str = "constant",
-                           uplift_factor: float = 1.5,
+                           uplift_factor: float | None = None,
                           ) -> TrainingSchedule:
     """Generate a cadence schedule. R1 always 100% compute, ending after
     R1's required training time. R2+ spaced every `period_days` after R1,
@@ -482,7 +535,14 @@ def equal_cadence_schedule(period_days: int,
 
     Trailing partial windows keep their true release date (past horizon)
     so the revenue decay path doesn't get a spurious reset.
+
+    ``uplift_factor`` defaults to the METR-anchored, cadence-consistent
+    value ``metr_uplift_factor(period_days)`` = ``2 ** (period_days/210)``.
+    At 30d cadence this is ~1.105; at 60d it is ~1.219. Pass an explicit
+    value to override (e.g. for the legacy fixed 1.5 / 1.22 anchors).
     """
+    if uplift_factor is None:
+        uplift_factor = metr_uplift_factor(period_days)
     # R1: initial, 100% compute, short
     r1_release = horizon_start + timedelta(
         days=_initial_R1_duration_days(sxm_fraction)

@@ -1,0 +1,6 @@
+scenario,price_basis,input_share,output_share,input_usd_per_1m,output_usd_per_1m,blended_revenue_usd_per_1m,capacity_rule,source
+standard,gpt-5.4-pro daily OpenAI standard API price,0.6666667,0.3333333,30,180,80,"max(0,total_capacity_t-training_allocated_capacity_t)",https://developers.openai.com/api/docs/models/gpt-5.4-pro
+batch_flex,gpt-5.4-pro Batch/Flex at half standard API rate,0.6666667,0.3333333,15,90,40,"max(0,total_capacity_t-training_allocated_capacity_t)",https://openai.com/index/introducing-gpt-5-4/
+priority,gpt-5.4-pro Priority at twice standard API rate,0.6666667,0.3333333,60,360,160,"max(0,total_capacity_t-training_allocated_capacity_t)",https://openai.com/index/introducing-gpt-5-4/
+long_context_over_272k,gpt-5.4-pro long context over 272K input tokens; input 2x and output 1.5x,0.6666667,0.3333333,60,270,130,"max(0,total_capacity_t-training_allocated_capacity_t)",https://developers.openai.com/api/docs/models/gpt-5.4-pro
+regional_data_residency,gpt-5.4-pro regional/data residency at 10 percent uplift,0.6666667,0.3333333,33,198,88,"max(0,total_capacity_t-training_allocated_capacity_t)",https://developers.openai.com/api/docs/models/gpt-5.4-pro

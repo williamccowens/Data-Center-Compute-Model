@@ -76,14 +76,18 @@ paths under the `doc_blended` token-multiplier scheme (quality uplift ×
 60-day market decay) and the mandatory RFP 500 MWh/day training floor.
 ~30 min on a 12-core box.
 
-**Latest result (N=3 smoke test):**
+**Latest result (N=50, baseline scenario, ~10 min on a 12-core box):**
 
 | Step | Result |
 |---|---|
-| Phase A cadence winner | **30 days (monthly)** at $95,042.9M (with all-on procurement) |
-| Phase C procurement winner | **LMP + Houston tolling, no BESS** at $95,044.1M |
-| Verification | 30 days confirmed under LMP+toll procurement |
-| **FINAL POLICY** | **30d × (LMP + Houston tolling, no BESS) → $95,044.11M mean profit** |
+| Phase A cadence winner | **95 days** at $148,101.32M (Phase B all-on diagnostic, with $4.80M toll capacity payment + $6M BESS lease deducted) |
+| Phase C procurement winner | **LMP only** — toll gross value ($2.21M) doesn't cover its $4.80M capacity payment; BESS arb doesn't cover its $3M/site lease |
+| Verification | 95d confirmed under LMP-only procurement at $148,106.34M |
+| **FINAL POLICY** | **95d × LMP only → $148,106.34M mean profit** |
+
+The 95d cadence and the LMP-only procurement choice are invariant across all four committed drift scenarios (`baseline` / `ai_structural` / `mild_drift` / `ai_plus_brent` — snapshots in `example_outputs_TEMPORARY/`). Final profit spans $148,104.70M–$148,106.34M across the four (tight ~$1.6M range, drift is essentially noise at these revenue levels).
+
+**Note on the cadence-winner shift vs prior runs:** earlier runs anchored the per-release `uplift_factor` to a fixed 1.5× (and later 1.22×). These were both implicitly tied to a single cadence (the planning doc's 60-day bimonthly) and overstated per-release growth at faster cadences — which is what made 30d cadence appear optimal. Under the corrected METR-anchored cadence-dependent uplift (`metr_uplift_factor(period_days) = 2 ^ (period_days/210)`) total 6-month capability gain is essentially the same across cadences (~1.82×), so the cadence trade-off becomes purely "compute spent on training vs inference time gained." Longer cadences win because they spend less compute on training (each release's compute floor grows with date). The optimal cadence shifted from **30d → 95d**, with profit reset from a spuriously high $217B back down to $148B.
 
 ---
 
@@ -176,7 +180,7 @@ hourly `train / inf` split — there is no separate "decider" module.
 | Script | Question |
 |---|---|
 | `python model\power_procurement_sweep.py` | What is each power-procurement option worth on its own? Computes per-path paired Δprofit for all 8 combos of (toll on/off) × (BESS placement: none / Houston / West / both). Holds cadence at the headline winner so the LP variation isolates procurement value. |
-| `python model\halflife_sensitivity.py` | How sensitive is the optimal cadence to the assumed token-decay halflife? Sweeps 30-120 days × cadence. |
+| `python model\halflife_sensitivity.py` | How sensitive is the optimal cadence to the assumed token-decay halflife? Sweeps {60, 120, 180, 270, 360, 540} days × cadence. The 270-day default is anchored to benchlm.ai's Price Index; 60 is the legacy planning-doc heuristic; 540 represents the no-decay Sonnet-tier extreme. |
 
 ### Layout
 
@@ -265,24 +269,54 @@ python model\run_planning_doc.py --mc 50 --stress uri_full   # 100h, $5K-9K/MWh 
 | Param-fit regime | **post-2020** | Was post-2010; post-2020 most closely matches the planning doc's stated R1-R5 numerical values with the 5× competitiveness multiplier. |
 | Token-multiplier scheme | `doc_blended` | quality-uplift × market-decay; configurable. |
 
-### Latest headline result (N=50, default scenario)
+### Latest headline result (N=50, baseline scenario)
 
-After Phase A across 12 candidate cadences (6 pass filter), 50 MC paths:
+After Phase A across the candidate cadences (6 pass filter), 50 MC paths under **cadence-dependent METR uplift** (`uplift_factor = 2^(period_days/210)`):
 
-| Cadence | Mean profit ($M) | Std | p05 | p95 |
-|---|---:|---:|---:|---:|
-| **every_30d ⭐** | **95,998.75** | **1.10** | **95,997** | **96,000** |
-| every_45d | 92,201.61 | 1.10 | 92,200 | 92,203 |
-| every_60d (planning-doc) | 87,810.86 | 1.10 | 87,809 | 87,812 |
-| every_90d | 83,061.77 | 1.10 | 83,060 | 83,063 |
+| Cadence | Mean profit ($M) | Std |
+|---|---:|---:|
+| **every_95d ⭐** | **148,101.32** | **1.25** |
+| every_90d | 144,750.82 | 1.25 |
+| every_85d | 141,553.99 | 1.25 |
+| every_75d | 135,573.50 | 1.25 |
+| every_74d | 134,889.12 | 1.25 |
+| every_63d | 126,278.48 | 1.25 |
+| every_60d (planning-doc) | 123,567.43 | 1.25 |
+| every_45d | 106,465.59 | 1.25 |
+| every_30d | 76,118.89 | 1.25 |
+| every_25d | 59,081.16 | 1.25 |
 
-Stage 2 refines `[28d, 32d, 35d, 39d]` — none beat 30d.
+Stage 2 refines `[66d, 78d, 89d, 95d]` — none beat 95d. Cadence-vs-cadence gaps are still billions; the cadence ranking decision is rock solid. The shape of the cadence curve is now monotone in the explored range above 30d: longer cadences dominate because the total 6-month capability gain is capped (~1.82× regardless of cadence — METR-consistent), so the trade-off is purely "compute spent on training vs inference time gained."
 
-**Phase B locked-cadence breakdown (30d, averaged across 50 paths):**
-- Inference revenue $95,076.58M; BESS sell-to-grid $4.52M
-- LMP cost $26.66M; toll cost $3.13M; BESS charge $2.43M; BESS lease $6M
-- **Profit $95,042.88M**
-- LP procurement: LMP 93.6 % / toll 6.4 % / BESS arb (40+ MWh in spike hours)
+**Phase B locked-cadence breakdown (95d, all-on procurement, averaged across 50 paths):**
+- Inference revenue $148,140.63M; BESS sell-to-grid $5.49M
+- LMP cost $27.04M; toll cost $4.28M; BESS charge $2.69M; BESS lease $6.00M; **toll capacity payment $4.80M**
+- **Profit $148,101.32M** (with all-on procurement — diagnostic only)
+- LP procurement (when all options enabled): LMP 91.4 % / toll 8.6 %
+- Compute split: train 157,623 grid-MWh / inf 718,138 grid-MWh (= **18 % train, 82 % inf**). Far less training than under the prior 30d-winner runs (53 % train / 47 % inf), because a quarterly release cycle frees up most of the compute for inference.
+
+**Phase C — procurement decision at 95d (top 4 of 8 combos):**
+
+| Combo | Mean profit ($M) | Δ vs LMP-only |
+|---|---:|---:|
+| **LMP only ⭐** | **148,106.34** | — |
+| LMP + BESS West only | 148,105.26 | −$1.08M  (arb < $3M site lease) |
+| LMP + BESS Houston only | 148,104.99 | −$1.35M  (arb < $3M site lease) |
+| LMP + BESS both | 148,103.91 | −$2.43M  (two leases compound) |
+| LMP + toll | 148,103.75 | −$2.59M  ($2.21M option value < $4.80M lease) |
+
+Phase C deltas are **essentially identical** to those under the prior 30d-winner runs (−$1.08M / −$1.35M / −$2.59M now vs the same numbers under 30d) — the procurement decision is driven by fixed lease costs (unchanged), not by absolute revenue. The cadence change shifted the absolute profit floor but left the procurement ranking ordering untouched.
+
+**Drift robustness — final policy is invariant across all four committed drift scenarios:**
+
+| Scenario | gas / power drift | Final profit ($M) | Procurement winner | Toll K\* ($/kW-mo) |
+|---|---|---:|---|---:|
+| baseline                        | 0 / 0           | 148,106.34 | LMP only | $3.68 |
+| ai_structural                   | 0.5 % / 1 %     | 148,105.93 | LMP only | $3.77 |
+| mild_drift (~½ Brent shock)     | 3 % / 1.5 %     | 148,105.72 | LMP only | $3.74 |
+| ai_plus_brent (structural+full) | 6.5 % / 4 %     | 148,104.70 | LMP only | $3.89 |
+
+Drift moves final profit by only $1.64M across the full 0 % → 6.5 % gas range — essentially noise at this revenue scale. The breakeven toll capacity-payment rate (K\*) rises modestly with drift (more volatile prices → more toll-exercise opportunity → higher gross option value), but stays well below the $8/kW-mo default seller rate in every scenario.
 
 ### Monte Carlo (real-options framing)
 
@@ -306,6 +340,29 @@ captures:
 - HB_WEST hourly log-OU (κ=0.044/hr, half-life ≈ 15.8 h)
 - Henry Hub daily log-OU (κ=0.018/day, half-life ≈ 38 d)
 - Innovation correlation (Houston-West = 0.75, power-gas ≈ −0.15)
+
+**σ calibration target (`--calibration {mle | tail_q}`):** the seasonal
+log-OU is shared verbatim with `ltemry/FTG-Final-Project`, but the σ
+fit target is now configurable. Default `mle` matches their port
+exactly. Opt-in `tail_q` (with `--tail-quantile 0.01` recommended)
+anchors σ to the empirical residual at the chosen lower-tail quantile
+instead of matching residual std — closes the well-known seasonal-OU
+underdispersion at HB_WEST (the seasonal table absorbs wind-driven
+negative-price hours into seasonal means, leaving an underdispersed
+residual). Model class is unchanged, so `mle` vs `tail_q` is itself a
+clean apples-to-apples comparison.
+
+| Calibration | HB_WEST neg-hour % | HB_WEST p1 | HB_WEST min |
+|---|---:|---:|---:|
+| Historical 2025 | 3.85 % | −5.97 | −13.21 |
+| `mle` (default; ltemry-aligned) | 0.90 % | 0.28 | −8.48 |
+| `tail_q --tail-quantile 0.05` | 1.50 % | −1.10 | −9.57 |
+| **`tail_q --tail-quantile 0.01`** | **3.07 %** | **−3.38** | **−11.05** |
+
+Has a meaningful effect on BESS-West arbitrage value (more negative
+hours = more profitable charging) — re-run Phase C with `--calibration
+tail_q --tail-quantile 0.01` to test whether the LMP-only Phase C
+winner is robust to richer left tails.
 
 ### Other analyses
 
@@ -361,17 +418,51 @@ its workload.
 The token-price source and revenue mix are RFP-firm: GPT-5.4Pro daily prices
 on benchlm.ai, blended 2/3 input + 1/3 output. The 5T tokens/day at 80 MW
 implies `TOKENS_PER_COMPUTE_MWH ≈ 2.604e9`, also RFP-firm. The remaining
-TBDs are how prices evolve through the 6-month horizon:
+choices are how prices evolve through the 6-month horizon — both are now
+anchored to public empirical data:
 
-| Parameter | Placeholder | Notes |
+| Parameter | Default | Empirical anchor |
 |---|---|---|
-| Per-release token multiplier | 4 schemes: `constant`, `quality_uplift`, `market_decay`, `doc_blended` | RFP silent on per-release pricing; the schemes are placeholders the project team will finalize. |
-| `TOKEN_PRICE_HALFLIFE_DAYS` | 60 days | Planning-doc concept ("halving every couple of months"); RFP silent. Could be 30–120 days, see `halflife_sensitivity.py`. |
+| `TOKEN_PRICE_HALFLIFE_DAYS` | **270 days (~8.85 mo)** | [benchlm.ai LLM Pricing Trends](https://benchlm.ai/llm-pricing-trends) Price Index fell 100 → 5.5 (94.5 % decline) over March 2023 → April 2026 (~37 months). That implies log₂(100/5.5) ≈ 4.18 halvings, halflife ≈ 37/4.18 ≈ 8.85 months ≈ 270 days. The planning doc's prior 60-day heuristic ("halving every couple of months") was ~4.5× too aggressive. |
+| `UPLIFT_FACTOR_DEFAULT` | **1.22× per release** | [METR's measured AI task-length doubling](https://metr.org/blog/2025-03-19-measuring-ai-ability-to-complete-long-tasks/) of ~7 months (frontier agents through Nov 2025) translated to a 60-day release cadence: 2^(60/210) ≈ 1.22×. Captures the net effect of customers shifting toward more agentic / long-context / reasoning-heavy tasks even as list price per token falls. Bracket: a16z 2024 enterprise survey (2–5× annual spend growth) gives 1.12× – 1.30×. Planning doc's prior 1.5× was too aggressive. |
+| Per-release token multiplier scheme | `doc_blended` | quality-uplift × market-decay; four schemes are available (`constant`, `quality_uplift`, `market_decay`, `doc_blended`) so the team can stress-test the joint anchor. |
 | Tokens per request | (abstracted into `TOKENS_PER_COMPUTE_MWH`) | The RFP's infinite-demand assumption ("demand always equals or exceeds available capacity") makes this unnecessary today. Would become useful as a **future extension** if we replaced infinite demand with a stochastic Poisson request-arrival process — then revenue would be (price × accepted requests) and tokens/request would set the per-request compute load. |
+
+**Why both anchors are needed simultaneously.** The benchlm Price Index
+captures the falling LIST price per standard-tier token. METR's task-length
+doubling captures the rising VALUE per token (longer agentic chains, more
+reasoning per output, expanded context windows). Together they describe a
+market where: per-token list prices fall, per-task value rises, and at
+infinite demand the net revenue per MWh of compute moves with their
+geometric combination. In the `doc_blended` scheme the model captures this
+as `revenue_k(t) = base × uplift_factor^k × 0.5^(t_days/halflife)`.
 
 The four built-in multiplier schemes give the project team a starting
 point. To override per-release with explicit prices, set
 `TrainingRun.token_revenue_multiplier` directly on each run.
+
+**Combined-data table.** `data/benchlm-pricing-with-dates.csv` merges the
+benchlm pricing snapshot with the release-date list curated for this
+project (`data/model-release-dates.csv`, 44 / 100 models dated). The
+empirical decay fits in the README above were computed from this merged
+table — see the dated frontier-tier rows (Anthropic Opus / OpenAI flagship
+GPT line / Anthropic Sonnet) for direct verification.
+
+**Independent corroboration: `data/revenue_model_inputs/`.** A separate
+revenue-model anchor dataset (`frontier_llm_price_observations.csv`,
+`revenue_model_assumptions.csv`, `revenue_pricing_scenarios.csv` +
+`revenue_model_data_README.md`) was added 2026-05-23 by the project
+team. It covers 10 frontier launches from GPT-4 8K (2023-03-14) through
+GPT-5.4 Pro (current). Its recommended halflife of 60 days is **derived
+under a 1.5× uplift assumption** ("Frontier launch-price transitions
+imply roughly 53 day median and 73 day mean under uplift_factor=1.5" —
+quoted from the assumptions CSV); the same data with our smaller
+METR-anchored cadence-dependent uplift (1.105× at 30d → 1.346× at 90d)
+would imply a longer halflife consistent with our 270d default. Our
+cadence-dependent uplift values (1.105×–1.346×) sit cleanly inside
+their recommended bracket (1.10×–1.80×, LogNormal median 1.25). So
+this dataset corroborates rather than contradicts our anchors — the
+two are reconcilable under a single uplift–halflife decomposition.
 
 ### Growth-curve fit choice
 
@@ -398,7 +489,7 @@ from the relevant row of `fit_growth_curves.py` output.
 |---|---|---|
 | DAM vs RT-LMP | DAM (only source available) | RFP requests RT-LMP; we use DAM as the closest available proxy. RT is typically more volatile ⇒ would slightly increase value of tolling and BESS arbitrage. |
 | Forward-curve drift | None (`--gas-drift-pct 0 --power-drift-pct 0`) | OU calibrated on 2025 actuals. `monte_carlo.apply_drift()` adds an additive shift to the long-run log-mean of each series, so a +5 % HH bump corresponds to `gas_drift_pct=0.05`. Four named scenarios are documented and committed as snapshots under `example_outputs_TEMPORARY/`: **baseline** (`0 / 0` — EIA STEO May-2026 short-term view, HH 2026 ≈ $3.50/MMBtu vs 2025 actual $3.53), **ai_structural** (`0.005 / 0.01` — secular ERCOT load growth from data-center buildout per ERCOT CDR + EIA AEO 2026), **mild_drift** (`0.03 / 0.015` — ~half geopolitical Brent shock via Brent→HH 0.2 + HH→LMP 0.5 elasticities), **ai_plus_brent** (`0.065 / 0.04` — structural + full +30 % Brent shock, max-stress combined scenario). |
-| MC path count | 50 (default) | Tight enough for cadence ranking (cadence gaps are billions; path-stdev is millions). **Procurement decisions are noisier** — Phase C gaps are ~$5M while path-stdev is ~$30M, so 200+ paths recommended when you need to defend a specific Phase C winner. |
+| MC path count | 50 (default) | Tight enough for both decisions. Cadence: gaps are billions, path-stdev ~$1M (z ≫ 1000). Procurement: paired/CRN comparison across the 8 combos (each combo runs on the same MC paths) collapses standalone std ~$1.1M to **paired-delta std ~$0.05-0.20M**, so even the closest Phase C gap (~$1.3M LMP-only vs LMP+BESS-West) has z ≈ 21. See `model/outputs/power_procurement_deltas_n50_doc_blended.csv`. |
 
 ### Tolling parameters
 

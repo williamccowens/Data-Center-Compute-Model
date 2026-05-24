@@ -1,0 +1,101 @@
+model,creator,inputPrice,outputPrice,contextWindow,sourceType
+"1-bit Bonsai 1.7B","Prism ML",0,0,"32K",Open Weight
+"1-bit Bonsai 4B","Prism ML",0,0,"32K",Open Weight
+"1-bit Bonsai 8B","Prism ML",0,0,"64K",Open Weight
+"Aion-2.0","Aion Labs",0.8,1.6,"128K",Proprietary
+"Claude 3 Haiku","Anthropic",0.25,1.25,"200K",Proprietary
+"Claude 3 Opus","Anthropic",15,75,"200K",Proprietary
+"Claude 3.5 Sonnet","Anthropic",3,15,"200K",Proprietary
+"Claude 4 Sonnet","Anthropic",3,15,"200K",Proprietary
+"Claude 4.1 Opus","Anthropic",15,75,"200K",Proprietary
+"Claude 4.1 Opus Thinking","Anthropic",,,"200K",Proprietary
+"Claude Haiku 4.5","Anthropic",1,5,"200K",Proprietary
+"Claude Mythos Preview","Anthropic",25,125,"1M",Proprietary
+"Claude Opus 4.5","Anthropic",5,25,"200K",Proprietary
+"Claude Opus 4.6","Anthropic",5,25,"1M",Proprietary
+"Claude Opus 4.7","Anthropic",5,25,"1M",Proprietary
+"Claude Opus 4.7 (Adaptive)","Anthropic",5,25,"1M",Proprietary
+"Claude Sonnet 4.5","Anthropic",3,15,"200K",Proprietary
+"Claude Sonnet 4.6","Anthropic",3,15,"200K",Proprietary
+"Command A+","Cohere",2.5,10,"128K",Open Weight
+"Composer 2","Cursor",0.5,2.5,"200K",Proprietary
+"Composer 2.5","Cursor",0.5,2.5,"200K",Proprietary
+"DBRX Instruct","Databricks",0,0,"32K",Open Weight
+"DeepSeek Coder 2.0","DeepSeek",,,"128K",Open Weight
+"DeepSeek LLM 2.0","DeepSeek",0,0,"128K",Open Weight
+"DeepSeek R1","DeepSeek",0.55,2.19,"128K",Open Weight
+"DeepSeek R1 Distill Qwen 32B","DeepSeek",0,0,"128K",Open Weight
+"DeepSeek V3","DeepSeek",0.27,1.1,"128K",Open Weight
+"DeepSeek V3.1","DeepSeek",0,0,"128K",Open Weight
+"DeepSeek V3.1 (Reasoning)","DeepSeek",0,0,"128K",Open Weight
+"DeepSeek V3.2","DeepSeek",0.28,0.42,"128K",Open Weight
+"DeepSeek V3.2 (Thinking)","DeepSeek",0.55,2.19,"128K",Open Weight
+"DeepSeek V4 Flash","DeepSeek",0.14,0.28,"1M",Open Weight
+"DeepSeek V4 Flash (High)","DeepSeek",0.14,0.28,"1M",Open Weight
+"DeepSeek V4 Flash (Max)","DeepSeek",0.14,0.28,"1M",Open Weight
+"DeepSeek V4 Flash Base","DeepSeek",,,"1M",Open Weight
+"DeepSeek V4 Pro","DeepSeek",1.74,3.48,"1M",Open Weight
+"DeepSeek V4 Pro (High)","DeepSeek",1.74,3.48,"1M",Open Weight
+"DeepSeek V4 Pro (Max)","DeepSeek",1.74,3.48,"1M",Open Weight
+"DeepSeek V4 Pro Base","DeepSeek",,,"1M",Open Weight
+"DeepSeekMath V2","DeepSeek",0,0,"128K",Open Weight
+"Gemini 1.0 Pro","Google",,,"32K",Proprietary
+"Gemini 1.5 Pro","Google",1.25,5,"1M",Proprietary
+"Gemini 2.5 Flash","Google",0.3,2.5,"1M",Proprietary
+"Gemini 2.5 Pro","Google",1.25,10,"1M",Proprietary
+"Gemini 3 Flash","Google",0.5,3,"1M",Proprietary
+"Gemini 3 Pro","Google",2,12,"2M",Proprietary
+"Gemini 3 Pro Deep Think","Google",,,"2M",Proprietary
+"Gemini 3.1 Flash-Lite","Google",0.25,1.5,"1M",Proprietary
+"Gemini 3.1 Pro","Google",2,12,"1M",Proprietary
+"Gemini 3.5 Flash","Google",1.5,9,"1M",Proprietary
+"Gemma 3 27B","Google",0,0,"32K",Open Weight
+"Gemma 4 26B A4B","Google",0,0,"256K",Open Weight
+"Gemma 4 31B","Google",0,0,"256K",Open Weight
+"Gemma 4 E2B","Google",0,0,"128K",Open Weight
+"Gemma 4 E4B","Google",0,0,"128K",Open Weight
+"GLM-4.5","Z.AI",0.6,2.2,"128K",Proprietary
+"GLM-4.5-Air","Z.AI",0.2,1.1,"128K",Proprietary
+"GLM-4.7","Z.AI",0,0,"200K",Open Weight
+"GLM-4.7-Flash","Z.AI",0,0,"200K",Open Weight
+"GLM-5","Z.AI",1,3.2,"200K",Open Weight
+"GLM-5 (Reasoning)","Z.AI",1,3.2,"200K",Open Weight
+"GLM-5-Turbo","Z.AI",1.2,4,"200K",Proprietary
+"GLM-5.1","Z.AI",1.4,4.4,"203K",Open Weight
+"GLM-5V-Turbo","Z.AI",1.2,4,"200K",Proprietary
+"GPT-4 Turbo","OpenAI",10,30,"128K",Proprietary
+"GPT-4.1","OpenAI",2,8,"1M",Proprietary
+"GPT-4.1 mini","OpenAI",0.4,1.6,"1M",Proprietary
+"GPT-4.1 nano","OpenAI",0.1,0.4,"1M",Proprietary
+"GPT-4o","OpenAI",2.5,10,"128K",Proprietary
+"GPT-4o mini","OpenAI",0.15,0.6,"128K",Proprietary
+"GPT-5 (high)","OpenAI",1.25,10,"400K",Proprietary
+"GPT-5 (medium)","OpenAI",,,"128K",Proprietary
+"GPT-5 mini","OpenAI",0.25,2,"128K",Proprietary
+"GPT-5 nano","OpenAI",0.05,0.4,"400K",Proprietary
+"GPT-5.1","OpenAI",1.25,10,"400K",Proprietary
+"GPT-5.1-Codex-Max","OpenAI",1.25,10,"400K",Proprietary
+"GPT-5.2","OpenAI",1.75,14,"400K",Proprietary
+"GPT-5.2 Instant","OpenAI",1.5,6,"128K",Proprietary
+"GPT-5.2 Pro","OpenAI",25,150,"400K",Proprietary
+"GPT-5.2-Codex","OpenAI",1.75,14,"400K",Proprietary
+"GPT-5.3 Codex","OpenAI",1.75,14,"400K",Proprietary
+"GPT-5.3 Instant","OpenAI",1.75,14,"128K",Proprietary
+"GPT-5.3-Codex-Spark","OpenAI",,,"256K",Proprietary
+"GPT-5.4","OpenAI",2.5,15,"1.05M",Proprietary
+"GPT-5.4 mini","OpenAI",0.75,4.5,"400K",Proprietary
+"GPT-5.4 nano","OpenAI",0.2,1.25,"400K",Proprietary
+"GPT-5.4 Pro","OpenAI",30,180,"1.05M",Proprietary
+"GPT-5.5","OpenAI",5,30,"1M",Proprietary
+"GPT-5.5 Pro","OpenAI",30,180,"1M",Proprietary
+"GPT-OSS 120B","OpenAI",0,0,"128K",Open Weight
+"GPT-OSS 20B","OpenAI",0,0,"128K",Open Weight
+"Granite-4.0-1B","IBM",0,0,"128K",Open Weight
+"Granite-4.0-350M","IBM",0,0,"32K",Open Weight
+"Granite-4.0-H-1B","IBM",0,0,"128K",Open Weight
+"Granite-4.0-H-350M","IBM",0,0,"32K",Open Weight
+"Grok 3 [Beta]","xAI",,,"128K",Proprietary
+"Grok 3 Mini","xAI",0.3,0.5,"128K",Proprietary
+"Grok 4","xAI",,,"128K",Proprietary
+"Grok 4.1","xAI",,,"1M",Proprietary
+"Grok 4.1 Fast","xAI",0.2,0.5,"2M",Proprietary

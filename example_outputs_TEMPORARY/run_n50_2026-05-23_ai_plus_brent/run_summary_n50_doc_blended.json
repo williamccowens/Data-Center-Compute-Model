@@ -1,0 +1,224 @@
+{
+  "generated_utc": "2026-05-24T00:52:03.789144+00:00",
+  "config": {
+    "mc_paths": 50,
+    "scheme": "doc_blended",
+    "seed": 42,
+    "stress": null,
+    "use_toll": true,
+    "use_bess": true,
+    "bess_sites": [
+      "HOUSTON",
+      "WEST"
+    ],
+    "training_min_mwh_per_day": 500.0,
+    "toll_max_mwh_per_day": null,
+    "gas_drift_pct": 0.065,
+    "power_drift_pct": 0.04,
+    "include_no_training": false,
+    "calibration_method": "tail_q",
+    "tail_quantile": 0.01
+  },
+  "final_policy": {
+    "cadence_days": 95,
+    "cadence_label": "95d",
+    "cadence_confirmed": true,
+    "initial_cadence": 95,
+    "procurement": "LMP only",
+    "procurement_scenario": {
+      "use_toll": false,
+      "use_bess": false,
+      "bess_sites": []
+    },
+    "mean_profit_$M": 148104.6977900063
+  },
+  "phase_a_cadence_ranking": [
+    {
+      "cadence": "25d",
+      "mean_$M": 59079.78613412356,
+      "std_$M": 1.297706815075288,
+      "p05_$M": 59077.67741052575,
+      "p95_$M": 59081.43828564701
+    },
+    {
+      "cadence": "30d",
+      "mean_$M": 76117.51277919282,
+      "std_$M": 1.297706815072339,
+      "p05_$M": 76115.40405559502,
+      "p95_$M": 76119.16493071629
+    },
+    {
+      "cadence": "45d",
+      "mean_$M": 106464.20829283798,
+      "std_$M": 1.2977068150752133,
+      "p05_$M": 106462.09956924016,
+      "p95_$M": 106465.86044436143
+    },
+    {
+      "cadence": "60d",
+      "mean_$M": 123566.05227368513,
+      "std_$M": 1.297706815077108,
+      "p05_$M": 123563.94355008731,
+      "p95_$M": 123567.70442520856
+    },
+    {
+      "cadence": "75d",
+      "mean_$M": 135572.12695079602,
+      "std_$M": 1.2977068150727198,
+      "p05_$M": 135570.01822719822,
+      "p95_$M": 135573.77910231947
+    },
+    {
+      "cadence": "90d",
+      "mean_$M": 144749.44304739672,
+      "std_$M": 1.2977068150703406,
+      "p05_$M": 144747.33432379892,
+      "p95_$M": 144751.09519892017
+    },
+    {
+      "cadence": "63d",
+      "mean_$M": 126277.10289266087,
+      "std_$M": 1.2977068150752225,
+      "p05_$M": 126274.99416906307,
+      "p95_$M": 126278.75504418432
+    },
+    {
+      "cadence": "74d",
+      "mean_$M": 134887.74465563515,
+      "std_$M": 1.2977068150748934,
+      "p05_$M": 134885.63593203737,
+      "p95_$M": 134889.39680715863
+    },
+    {
+      "cadence": "85d",
+      "mean_$M": 141552.60947376076,
+      "std_$M": 1.297706815075952,
+      "p05_$M": 141550.500750163,
+      "p95_$M": 141554.26162528427
+    },
+    {
+      "cadence": "95d",
+      "mean_$M": 148099.93699385144,
+      "std_$M": 1.2977068150759665,
+      "p05_$M": 148097.82827025367,
+      "p95_$M": 148101.58914537495
+    }
+  ],
+  "phase_b_locked_cadence": {
+    "cadence_days": 95,
+    "procurement": "all-on (diagnostic)",
+    "averaged_breakdown": {
+      "rev_inf_$M": 148140.63272470006,
+      "rev_bess_grid_$M": 5.709733385964756,
+      "cost_lmp_$M": 28.284750655908464,
+      "cost_toll_$M": 4.491920407051149,
+      "cost_bess_ch_$M": 2.828793171592457,
+      "bess_lease_$M": 6.0,
+      "toll_lease_$M": 4.800000000000001,
+      "profit_$M": 148099.93699385144,
+      "g_lmp_total_mwh": 785484.4887546002,
+      "g_toll_total_mwh": 74925.38070228,
+      "bess_ch_total_mwh": 115577.07961101396,
+      "bess_dis_dc_mwh": 15350.951917119837,
+      "bess_dis_grid_mwh": 90979.96139172003,
+      "train_grid_mwh": 157622.58907299998,
+      "inf_grid_mwh": 718138.2323006002
+    },
+    "profit_distribution_$M": {
+      "mean": 148099.93699385144,
+      "std": 1.2977068150759665,
+      "p05": 148097.82827025367,
+      "p50": 148099.78532170938,
+      "p95": 148101.58914537495
+    }
+  },
+  "phase_c_procurement_ranking": [
+    {
+      "scenario": "LMP only",
+      "use_toll": false,
+      "bess_sites": "",
+      "mean_$M": 148104.6977900063,
+      "std_$M": 1.6692884152790084,
+      "p05_$M": 148102.01350920796,
+      "p95_$M": 148106.77403151174
+    },
+    {
+      "scenario": "LMP + toll",
+      "use_toll": true,
+      "bess_sites": "",
+      "mean_$M": 148102.2286381581,
+      "std_$M": 1.4370625889629145,
+      "p05_$M": 148099.87507982537,
+      "p95_$M": 148104.0067304982
+    },
+    {
+      "scenario": "LMP + BESS Houston",
+      "use_toll": false,
+      "bess_sites": "HOUSTON",
+      "mean_$M": 148103.41405399615,
+      "std_$M": 1.604506113826657,
+      "p05_$M": 148100.83882400888,
+      "p95_$M": 148105.39373390315
+    },
+    {
+      "scenario": "LMP + BESS West",
+      "use_toll": false,
+      "bess_sites": "WEST",
+      "mean_$M": 148103.68988170978,
+      "std_$M": 1.5881720535128703,
+      "p05_$M": 148101.14138483538,
+      "p95_$M": 148105.63601778226
+    },
+    {
+      "scenario": "LMP + BESS both",
+      "use_toll": false,
+      "bess_sites": "HOUSTON,WEST",
+      "mean_$M": 148102.40614569967,
+      "std_$M": 1.5232514140130173,
+      "p05_$M": 148099.96669963628,
+      "p95_$M": 148104.25572017368
+    },
+    {
+      "scenario": "LMP + toll + BESS Houston",
+      "use_toll": true,
+      "bess_sites": "HOUSTON",
+      "mean_$M": 148100.94490214795,
+      "std_$M": 1.3794902471270378,
+      "p05_$M": 148098.70039462627,
+      "p95_$M": 148102.66932218528
+    },
+    {
+      "scenario": "LMP + toll + BESS West",
+      "use_toll": true,
+      "bess_sites": "WEST",
+      "mean_$M": 148101.22072986158,
+      "std_$M": 1.3550314305414755,
+      "p05_$M": 148099.00295545277,
+      "p95_$M": 148102.92283291553
+    },
+    {
+      "scenario": "LMP + toll + BESS both",
+      "use_toll": true,
+      "bess_sites": "HOUSTON,WEST",
+      "mean_$M": 148099.93699385144,
+      "std_$M": 1.2977068150759665,
+      "p05_$M": 148097.82827025367,
+      "p95_$M": 148101.58914537495
+    }
+  ],
+  "verification": {
+    "cadence_under_optimal_procurement": {
+      "66d": 128832.73845728845,
+      "78d": 137535.00791513524,
+      "89d": 144066.72198872347,
+      "95d": 148104.6977900063
+    },
+    "confirmed": true
+  },
+  "output_files": {
+    "phase_a_cadence_csv": "mc_summary_n50_doc_blended.csv",
+    "phase_c_procurement_csv": "phase_c_procurement_n50_doc_blended.csv",
+    "hourly_all_paths_csv": "hourly_winner_all_paths_n50_doc_blended.csv",
+    "hourly_avg_csv": "hourly_winner_avg_n50_doc_blended.csv"
+  }
+}

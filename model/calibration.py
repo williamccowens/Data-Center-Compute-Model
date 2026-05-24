@@ -64,15 +64,49 @@ def fit_seasonality(price: pd.Series,
     return df.set_index("datetime")["residual"], seasonal
 
 
-def fit_ou_ar1(residuals: pd.Series, dt_hours: float = 1.0
+def fit_ou_ar1(residuals: pd.Series,
+               dt_hours: float = 1.0,
+               calibration_method: str = "tail_q",
+               tail_quantile: float = 0.01,
                ) -> tuple[float, float]:
+    """Fit OU κ and σ from a residual series.
+
+    κ is always estimated from the AR(1) decay (`phi = corr(x_t, x_{t+1})`).
+
+    σ supports two methods:
+      * ``"tail_q"`` (default; ``tail_quantile=0.01``) — σ is calibrated to
+        make the OU stationary Gaussian match the empirical residual at
+        the chosen lower-tail quantile. Addresses seasonal-OU
+        underdispersion (the seasonal table absorbs wind-driven
+        negative-price hours into seasonal means, leaving an
+        underdispersed residual). At q=0.01 simulated HB_WEST negative
+        hours match 2025 actuals to ~20 % (3.07 % sim vs 3.85 %
+        historical). Houston/HH are nearly symmetric so the effect is
+        small there; HB_WEST gets a meaningful σ bump.
+      * ``"mle"`` — σ back-solved from std of innovations so the
+        stationary distribution matches the residual standard deviation.
+        Identical to the ltemry/FTG-Final-Project port; retained as
+        opt-in for ltemry parity comparisons.
+    """
     x = residuals.dropna().values
     x0, x1 = x[:-1], x[1:]
     phi = float((x0 @ x1) / (x0 @ x0))
     phi = max(min(phi, 0.9999), 1e-4)
-    s = float(np.std(x1 - phi * x0, ddof=1))
     kappa = -np.log(phi) / dt_hours
-    sigma = s * np.sqrt(2 * kappa / (1 - np.exp(-2 * kappa * dt_hours)))
+
+    if calibration_method == "mle":
+        s = float(np.std(x1 - phi * x0, ddof=1))
+        sigma = s * np.sqrt(2 * kappa / (1 - np.exp(-2 * kappa * dt_hours)))
+    elif calibration_method == "tail_q":
+        from scipy.stats import norm
+        q_emp = float(np.quantile(x, tail_quantile))
+        sigma_stat = q_emp / norm.ppf(tail_quantile)
+        sigma = sigma_stat * np.sqrt(2 * kappa)
+    else:
+        raise ValueError(
+            f"calibration_method must be 'mle' or 'tail_q', got {calibration_method!r}"
+        )
+
     return kappa, sigma
 
 
@@ -81,7 +115,9 @@ def calibrate_series(price: pd.Series,
                      name: str,
                      dt_hours: float = 1.0,
                      transform: str = "log",
-                     auto_shift: bool = True
+                     auto_shift: bool = True,
+                     calibration_method: str = "tail_q",
+                     tail_quantile: float = 0.01,
                      ) -> tuple[OUParams, pd.Series]:
     if transform == "log" and auto_shift:
         p_min = price.min()
@@ -90,7 +126,9 @@ def calibrate_series(price: pd.Series,
         shift = 0.0
     residuals, seasonal = fit_seasonality(price, dt, transform=transform,
                                           shift=shift)
-    kappa, sigma = fit_ou_ar1(residuals, dt_hours=dt_hours)
+    kappa, sigma = fit_ou_ar1(residuals, dt_hours=dt_hours,
+                              calibration_method=calibration_method,
+                              tail_quantile=tail_quantile)
     return OUParams(
         name=name, shift=shift, kappa=kappa, sigma=sigma,
         long_run_mean_log=float(residuals.mean()),
@@ -135,20 +173,31 @@ class JointModel:
 
 
 def calibrate_joint(hourly_panel: pd.DataFrame,
-                    daily_panel: pd.DataFrame) -> JointModel:
+                    daily_panel: pd.DataFrame,
+                    calibration_method: str = "tail_q",
+                    tail_quantile: float = 0.01,
+                    ) -> JointModel:
     """
     hourly_panel: columns [datetime, hb_houston, hb_west]
     daily_panel : columns [date, gas_hh]
+
+    ``calibration_method`` is passed through to each per-series fit. Default
+    ``"tail_q"`` with ``tail_quantile=0.01`` anchors σ to the empirical
+    1st-percentile of the residual, restoring HB_WEST lower-tail mass
+    (~3 % negative-price hours) that seasonal stripping otherwise absorbs.
+    Set to ``"mle"`` for the residual-std fit (identical to the
+    ltemry/FTG-Final-Project port — retained for parity comparisons).
     """
+    kw = dict(calibration_method=calibration_method, tail_quantile=tail_quantile)
     p_hou, res_hou = calibrate_series(
         hourly_panel["hb_houston"], hourly_panel["datetime"],
-        name="HB_HOUSTON", dt_hours=1.0, transform="log")
+        name="HB_HOUSTON", dt_hours=1.0, transform="log", **kw)
     p_wst, res_wst = calibrate_series(
         hourly_panel["hb_west"], hourly_panel["datetime"],
-        name="HB_WEST", dt_hours=1.0, transform="log")
+        name="HB_WEST", dt_hours=1.0, transform="log", **kw)
     g_hh, res_hh = calibrate_series(
         daily_panel["gas_hh"], daily_panel["date"],
-        name="HenryHub", dt_hours=24.0, transform="log")
+        name="HenryHub", dt_hours=24.0, transform="log", **kw)
 
     daily_power = pd.DataFrame({
         "power_houston": res_hou.groupby(res_hou.index.normalize()).mean(),

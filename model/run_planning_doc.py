@@ -545,6 +545,19 @@ def main():
                    help="Toll daily MWh cap (Houston). Empirical brackets: "
                         "720=peaker, 1500=intermediate, 2280=near-nameplate. "
                         "Default: no cap.")
+    p.add_argument("--calibration", choices=["mle", "tail_q"], default="tail_q",
+                   help="sigma calibration target. 'tail_q' (default; with "
+                        "--tail-quantile 0.01) anchors sigma to the empirical "
+                        "1st-percentile residual, restoring HB_WEST lower-tail "
+                        "mass that seasonal stripping otherwise absorbs "
+                        "(simulated negative-hour freq 3.07%% vs 3.85%% "
+                        "historical). 'mle' uses residual std (identical to "
+                        "the ltemry/FTG-Final-Project port; retained for "
+                        "parity comparisons).")
+    p.add_argument("--tail-quantile", type=float, default=0.01,
+                   help="Quantile target for --calibration tail_q (default "
+                        "0.01; matches 2025 HB_WEST negative-hour frequency "
+                        "to within ~20%%).")
     args = p.parse_args()
 
     scenario = A.Scenario(
@@ -589,7 +602,9 @@ def main():
               f"monte_carlo.calibrate_and_simulate() ...")
         model, sim = calibrate_and_simulate(n_paths=args.mc, seed=args.seed,
                                              gas_drift_pct=args.gas_drift_pct,
-                                             power_drift_pct=args.power_drift_pct)
+                                             power_drift_pct=args.power_drift_pct,
+                                             calibration_method=args.calibration,
+                                             tail_quantile=args.tail_quantile)
         print(model.summary().to_string(index=False))
         if args.stress != "none":
             sim_base = sim
@@ -723,6 +738,10 @@ def write_run_summary(*, args, n_paths, scenario,
             "gas_drift_pct":            float(args.gas_drift_pct),
             "power_drift_pct":          float(args.power_drift_pct),
             "include_no_training":      bool(args.include_no_training),
+            "calibration_method":       args.calibration,
+            "tail_quantile":            (float(args.tail_quantile)
+                                          if args.calibration == "tail_q"
+                                          else None),
         },
         "final_policy": {
             "cadence_days":       int(verified_cad),
