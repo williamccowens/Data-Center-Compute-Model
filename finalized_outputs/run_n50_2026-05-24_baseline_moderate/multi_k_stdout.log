@@ -1,0 +1,9 @@
+Per-scenario breakeven K* ($/kW-mo, fixed 100 MW):
+  LMP + toll                        K* = $5.880
+  LMP + toll + BESS Houston         K* = $5.880
+  LMP + toll + BESS West            K* = $5.880
+  LMP + toll + BESS both            K* = $5.880
+Headline K* (LMP+toll) = $5.880  -> sub-breakeven K = $5.292
+Interior K (MW~60) = $5.874/kW-mo
+Wrote C:\Users\WCCO\Documents\GitHub\FTG Final\finalized_outputs\run_n50_2026-05-24_baseline_moderate\phase_c_multi_k_n50_doc_blended_c30.csv
+Wrote C:\Users\WCCO\Documents\GitHub\FTG Final\finalized_outputs\run_n50_2026-05-24_baseline_moderate\figures\08_multi_k_procurement_bars.png

@@ -454,8 +454,15 @@ def solve_across_paths(prices_list: list,
             out.append(compute_breakdown(res, scenario))
         return out
 
-    # Parallel path: pickle a shared bundle so workers can load once
-    workers = workers or max(1, (os.cpu_count() or 4) - 1)
+    # Parallel path: pickle a shared bundle so workers can load once.
+    # FTG_MAX_WORKERS env var caps the worker count — prevents MemoryError
+    # on high-core machines with limited free RAM (LP memory ~2 GB/worker
+    # at the 30d cadence, so 31 default workers can easily exhaust 32 GB).
+    env_cap = int(os.environ.get("FTG_MAX_WORKERS", "0") or "0")
+    default_workers = max(1, (os.cpu_count() or 4) - 1)
+    if env_cap > 0:
+        default_workers = min(default_workers, env_cap)
+    workers = workers or default_workers
     bundle = {"prices":   {i: prices_list[i] for i in range(n)},
               "gas":      {i: gas_list[i]    for i in range(n)},
               "scenario": scenario,

@@ -1,0 +1,33 @@
+<!doctype html><html lang='en'><head>
+<meta charset='utf-8'>
+<title>Snapshot comparison (stress overlay = `uri_full`)</title>
+<style>
+body { font-family: -apple-system, Segoe UI, Helvetica, Arial, sans-serif;
+       max-width: 1100px; margin: 2rem auto; padding: 0 1rem; color: #222; }
+h1 { border-bottom: 2px solid #888; padding-bottom: 0.3rem; }
+h2 { margin-top: 2.2rem; }
+p.intro { color: #555; font-size: 0.93rem; }
+table { border-collapse: collapse; margin: 0.5rem 0 2rem 0;
+        font-variant-numeric: tabular-nums; }
+th, td { border: 1px solid #bbb; padding: 4px 10px; }
+th { background: #f0f0f0; text-align: left; }
+td.r, th.r { text-align: right; }
+img { max-width: 100%; height: auto; margin: 1rem 0; }
+hr { border: none; border-top: 1px solid #ddd; margin: 2rem 0; }
+</style></head><body>
+<h1>Snapshot comparison <small>(stress overlay = `uri_full`)</small></h1>
+<p class='intro'>Cross-scenario view of the four 50-path Monte Carlo drift scenarios. Each snapshot is the same model under a different gas / power forward-curve overlay. Select any table, copy, and paste into Word or Google Docs — both apps preserve the HTML table structure.</p>
+<h2>Headline profit &amp; winners</h2>
+<table><thead><tr><th>Snapshot</th><th class='r'>Gas drift</th><th class='r'>Power drift</th><th class='r'>Cadence winner</th><th class='r'>Cadence profit</th><th class='r'>Δ vs baseline</th><th class='r'>Full-cost proc. winner</th><th class='r'>Variable-cost proc. winner</th><th class='r'>VC gap ($M)</th><th class='r'>Breakeven K*</th></tr></thead><tbody><tr><td>baseline</td><td class='r'>+0.0%</td><td class='r'>+0.0%</td><td class='r'>90d</td><td class='r'>$36,363.99M</td><td class='r'>+0.00</td><td class='r'>LMP + toll</td><td class='r'>LMP + toll + BESS both</td><td class='r'>+9.12</td><td class='r'>$11.781/kW-mo</td></tr><tr><td>ai_structural</td><td class='r'>+0.5%</td><td class='r'>+1.0%</td><td class='r'>90d</td><td class='r'>$36,363.67M</td><td class='r'>-0.32</td><td class='r'>LMP + toll</td><td class='r'>LMP + toll + BESS both</td><td class='r'>+9.15</td><td class='r'>$11.872/kW-mo</td></tr><tr><td>mild_drift</td><td class='r'>+3.0%</td><td class='r'>+1.5%</td><td class='r'>90d</td><td class='r'>$36,363.46M</td><td class='r'>-0.53</td><td class='r'>LMP + toll</td><td class='r'>LMP + toll + BESS both</td><td class='r'>+9.17</td><td class='r'>$11.835/kW-mo</td></tr><tr><td>ai_plus_brent</td><td class='r'>+6.5%</td><td class='r'>+4.0%</td><td class='r'>90d</td><td class='r'>$36,362.62M</td><td class='r'>-1.37</td><td class='r'>LMP + toll</td><td class='r'>LMP + toll + BESS both</td><td class='r'>+9.25</td><td class='r'>$11.981/kW-mo</td></tr></tbody></table>
+<h2>Procurement Δ vs LMP-only across snapshots</h2>
+<p class='intro'>Negative cells = the scenario underperforms LMP-only in that drift overlay.</p>
+<table><thead><tr><th>Scenario</th><th class='r'>baseline</th><th class='r'>ai_structural</th><th class='r'>mild_drift</th><th class='r'>ai_plus_brent</th></tr></thead><tbody><tr><td>LMP + toll</td><td class='r'>+2.27</td><td class='r'>+2.32</td><td class='r'>+2.30</td><td class='r'>+2.39</td></tr><tr><td>LMP + BESS Houston</td><td class='r'>-0.98</td><td class='r'>-0.96</td><td class='r'>-0.95</td><td class='r'>-0.91</td></tr><tr><td>LMP + BESS West</td><td class='r'>-0.71</td><td class='r'>-0.69</td><td class='r'>-0.68</td><td class='r'>-0.64</td></tr><tr><td>LMP + BESS both</td><td class='r'>-1.68</td><td class='r'>-1.65</td><td class='r'>-1.63</td><td class='r'>-1.55</td></tr><tr><td>LMP + toll + BESS Houston</td><td class='r'>+1.29</td><td class='r'>+1.36</td><td class='r'>+1.35</td><td class='r'>+1.48</td></tr><tr><td>LMP + toll + BESS West</td><td class='r'>+1.56</td><td class='r'>+1.63</td><td class='r'>+1.62</td><td class='r'>+1.75</td></tr><tr><td>LMP + toll + BESS both</td><td class='r'>+0.58</td><td class='r'>+0.67</td><td class='r'>+0.67</td><td class='r'>+0.84</td></tr></tbody></table>
+<img src='./comparison_figures_uri_full/procurement_heatmap.png' alt='Procurement Δ heatmap'/>
+<h2>Sweep-curve overlays</h2>
+<h3>Capacity-payment sweep</h3>
+<img src='./comparison_figures_uri_full/cap_payment_overlay.png' alt='Capacity-payment sweep'/>
+<h3>Reservation-MW sweep (each snapshot anchored at its own 0 MW)</h3>
+<img src='./comparison_figures_uri_full/reservation_overlay.png' alt='Reservation-MW sweep (each snapshot anchored at its own 0 MW)'/>
+<h3>Toll daily-cap brackets (Δ vs LMP-only, grouped bars)</h3>
+<img src='./comparison_figures_uri_full/toll_cap_grouped.png' alt='Toll daily-cap brackets (Δ vs LMP-only, grouped bars)'/>
+</body></html>

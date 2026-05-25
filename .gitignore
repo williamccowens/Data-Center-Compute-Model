@@ -39,3 +39,13 @@ _apply_report_footnotes.py
 # regenerated on every wrapper run and add no committable value)
 example_outputs_TEMPORARY/compare_snapshots_stdout*.log
 example_outputs_TEMPORARY/variable_cost_stdout.log
+finalized_outputs/compare_snapshots_stdout*.log
+finalized_outputs/run_all_drifts_stdout*.log
+finalized_outputs/run_all_drifts_stderr*.log
+finalized_outputs/variable_cost_stdout.log
+finalized_outputs/regen_k_sweep_*_stdout.log
+finalized_outputs/regen_k_sweep_*_stderr.log
+
+# Transient LP solver bundle pickles dropped inside snapshot dirs
+# when a parallel run is interrupted (cleaned up by complete runs)
+finalized_outputs/**/_solver_bundle_*.pkl

@@ -34,7 +34,7 @@ Two invocation modes:
   1. **Standalone** (existing snapshot): regenerates the MC price/gas
      paths from the snapshot's `run_summary_*.json` config (seed, drift,
      calibration parameters), then solves and renders.
-       python model/per_k_hourly.py example_outputs_TEMPORARY/run_n50_2026-05-23_baseline/
+       python model/per_k_hourly.py finalized_outputs/run_n50_2026-05-24_baseline/
 
   2. **In-process** (called from `run_planning_doc.py` at the end of a
      fresh run): pass the in-memory `prices_list`, `gas_list`, and

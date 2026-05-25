@@ -46,9 +46,15 @@ PUE                      = 1.25    # grid MW per compute MW
 # FLOPS_PER_COMPUTE_MWH for training, INFERENCE_REV_PER_GRID_MWH for inference.
 # ─────────────────────────────────────────────────────────────────────────
 GPUS_PER_SITE = 90_000                        # RFP — fixed
-H100_SXM_SUSTAINED_TFLOPS_PER_SEC  = 500.0    # ⚠️ TBD placeholder (~50% of FP8 dense)
-H100_PCIE_SUSTAINED_TFLOPS_PER_SEC = 380.0    # ⚠️ TBD placeholder (~50% of FP8 dense)
-SXM_FRACTION_DEFAULT = 0.60                   # ⚠️ TBD placeholder (60/40 default)
+# Planning doc finalized values (Final Project Planning .docx):
+#   * Sustained TF/s ≈ 52% of FP8-dense (SXM 989 → 520, PCIe 756 → 396).
+#     Source: Narayanan et al. 2021 — https://arxiv.org/abs/2104.04473
+#   * 60% SXM allocation balances training (SXM/NVLink-bound) vs cost-
+#     effective inference (PCIe). Source: planning doc citing
+#     en.wikipedia.org/wiki/SXM_(socket) + thundercompute.com H100 guide.
+H100_SXM_SUSTAINED_TFLOPS_PER_SEC  = 520.0    # ~52% of FP8 dense
+H100_PCIE_SUSTAINED_TFLOPS_PER_SEC = 396.0    # ~52% of FP8 dense
+SXM_FRACTION_DEFAULT = 0.60                   # 60/40 SXM/PCIe split
 
 # Houston is the only site with tolling access (RFP)
 TOLL_SITES = (HOUSTON,)
@@ -62,23 +68,50 @@ TOKENS_PER_COMPUTE_MWH = TOKENS_PER_DAY_AT_FULL_INFERENCE / (80.0 * 24.0)
 
 
 # ─────────────────────────────────────────────────────────────────────────
-# Token pricing — partly TBD pending project team's final revenue model.
-# Per-MM prices below come from benchlm.ai/llm-pricing for GPT-5.4Pro
-# (RFP-specified) as the FRONTIER PEAK. Mix is RFP-fixed (2/3 input,
-# 1/3 output). What's still TBD:
-#   1. Per-release token-price projection (currently configurable via
-#      `token_revenue_multiplier` on each TrainingRun — schemes: constant,
-#      quality_uplift, market_decay, doc_blended).
-#   2. Tokens-per-request and request-rate models. These are currently
-#      ABSTRACTED into the RFP's 5T-tokens/day @ 80 MW relationship, which
-#      is what fixes TOKENS_PER_COMPUTE_MWH. Once concrete numbers arrive,
-#      replace TOKENS_PER_COMPUTE_MWH directly or split into separate
-#      tokens/request × requests/MWh constants.
+# Token pricing. Per-MM prices below come from benchlm.ai/llm-pricing for
+# GPT-5.4Pro (RFP-specified) as the FRONTIER PEAK. Mix is RFP-fixed (2/3
+# input, 1/3 output). Two layers compose on top of this base:
+#   1. Per-release scheme via `token_revenue_multiplier` on each
+#      TrainingRun — schemes: constant, quality_uplift, market_decay,
+#      doc_blended.
+#   2. Planning-doc global haircut (TOKEN_REVENUE_GLOBAL_MULTIPLIER = 0.25)
+#      applied uniformly on TOP of the per-release scheme — represents
+#      forward competitive-pricing equilibrium. See the constant's
+#      docstring below for sources + RFP-compliance discussion.
+# Tokens-per-request and request-rate are ABSTRACTED into the RFP's
+# 5T-tokens/day @ 80 MW relationship (fixes TOKENS_PER_COMPUTE_MWH).
+# Once concrete numbers arrive, replace TOKENS_PER_COMPUTE_MWH directly
+# or split into separate tokens/request × requests/MWh constants.
 # ─────────────────────────────────────────────────────────────────────────
 TOKEN_PRICE_INPUT_PER_MM  = 30.0    # benchlm.ai GPT-5.4Pro frontier peak
 TOKEN_PRICE_OUTPUT_PER_MM = 180.0   # benchlm.ai GPT-5.4Pro frontier peak
 INPUT_REVENUE_FRACTION    = 2.0 / 3.0   # RFP-fixed
 OUTPUT_REVENUE_FRACTION   = 1.0 / 3.0   # RFP-fixed
+
+# ─────────────────────────────────────────────────────────────────────────
+# Planning-doc global revenue scaler — applied ON TOP of any per-release
+# scheme (constant / quality_uplift / market_decay / doc_blended).
+#
+# The planning doc lists `token_revenue_multiplier = 0.25` as a flat
+# scenario assumption: a forward-view 6-month equilibrium where competitive
+# pressure compresses frontier token prices to ~25% of GPT-5.4Pro daily
+# values. Sources cited in the planning doc:
+#   Qwen 3.5 Max         $2.5 / $7.5  per MM (in/out)
+#   XAI Grok             $1.0 / $2.0
+#   Gemini 3.5 Flash     $1.5 / $9.0
+#   Claude Opus 4.7      $15  / $25
+# Average of these benchmarks blends to ~$20/MM = ~25% of GPT-5.4Pro's
+# $80/MM blended (2/3 input × $30 + 1/3 output × $180).
+#
+# RFP NOTE: this DEVIATES from the literal RFP instruction ("priced
+# identically with the daily prices of GPT-5.4Pro"). We preserve the
+# GPT-5.4Pro base ($30/$180) and apply the haircut as a separate
+# per-release multiplier — so flipping back to RFP-literal pricing is a
+# one-line change (set TOKEN_REVENUE_GLOBAL_MULTIPLIER = 1.0). Framing
+# it this way also keeps the GPT-5.4Pro reference visible in
+# TOKEN_REVENUE_PER_MM for the RFP-compliance discussion.
+# ─────────────────────────────────────────────────────────────────────────
+TOKEN_REVENUE_GLOBAL_MULTIPLIER = 0.25
 
 # Blended $ per million tokens
 TOKEN_REVENUE_PER_MM = (
@@ -464,7 +497,8 @@ def _per_release_multipliers(release_dates: List[date],
                              scheme: str,
                              *,
                              uplift_factor: float,
-                             halflife_days: float = TOKEN_PRICE_HALFLIFE_DAYS
+                             halflife_days: float = TOKEN_PRICE_HALFLIFE_DAYS,
+                             global_multiplier: float = TOKEN_REVENUE_GLOBAL_MULTIPLIER,
                             ) -> List[float]:
     """Build per-release token-revenue multipliers.
 
@@ -473,6 +507,13 @@ def _per_release_multipliers(release_dates: List[date],
       'quality_uplift' multiplier_k = uplift_factor**k  (newer = better model)
       'market_decay'   multiplier_k = 0.5**(t_days/halflife)  (consumer prices fall)
       'doc_blended'    quality_uplift × market_decay (planning doc's net story)
+
+    ``global_multiplier`` is the planning-doc-specified flat haircut
+    (TOKEN_REVENUE_GLOBAL_MULTIPLIER = 0.25 by default) applied uniformly
+    to every per-release multiplier AFTER the scheme is evaluated. It
+    represents the forward competitive-pricing equilibrium and is
+    independent of the per-release quality/decay dynamics encoded by
+    ``scheme``. Pass 1.0 to disable (e.g. RFP-literal pricing).
     """
     mults = []
     horizon_start = HORIZON_START
@@ -488,13 +529,14 @@ def _per_release_multipliers(release_dates: List[date],
             mults.append((uplift_factor ** k) * (0.5 ** (t / halflife_days)))
         else:
             raise ValueError(f"unknown multiplier scheme: {scheme!r}")
-    return mults
+    return [m * global_multiplier for m in mults]
 
 
 def planning_doc_schedule(horizon_end: date = HORIZON_END,
                           sxm_fraction: float = SXM_FRACTION_DEFAULT,
                           token_multiplier_scheme: str = "constant",
                           uplift_factor: float | None = None,
+                          global_multiplier: float = TOKEN_REVENUE_GLOBAL_MULTIPLIER,
                           ) -> TrainingSchedule:
     """Planning-doc-style bimonthly schedule.
 
@@ -510,6 +552,10 @@ def planning_doc_schedule(horizon_end: date = HORIZON_END,
 
     ``uplift_factor`` defaults to the METR-anchored cadence-dependent
     value via ``metr_uplift_factor(60)`` ≈ 1.219.
+
+    ``global_multiplier`` is the planning-doc flat haircut applied on top
+    of the per-release scheme (default ``TOKEN_REVENUE_GLOBAL_MULTIPLIER``
+    = 0.25). Pass 1.0 to disable (RFP-literal pricing).
     """
     sch = equal_cadence_schedule(
         period_days=60,
@@ -517,6 +563,7 @@ def planning_doc_schedule(horizon_end: date = HORIZON_END,
         sxm_fraction=sxm_fraction,
         token_multiplier_scheme=token_multiplier_scheme,
         uplift_factor=uplift_factor,
+        global_multiplier=global_multiplier,
     )
     sch.name = f"planning_doc_bimonthly_{token_multiplier_scheme}"
     return sch
@@ -528,6 +575,7 @@ def equal_cadence_schedule(period_days: int,
                            sxm_fraction:  float = SXM_FRACTION_DEFAULT,
                            token_multiplier_scheme: str = "constant",
                            uplift_factor: float | None = None,
+                           global_multiplier: float = TOKEN_REVENUE_GLOBAL_MULTIPLIER,
                           ) -> TrainingSchedule:
     """Generate a cadence schedule. R1 always 100% compute, ending after
     R1's required training time. R2+ spaced every `period_days` after R1,
@@ -540,6 +588,11 @@ def equal_cadence_schedule(period_days: int,
     value ``metr_uplift_factor(period_days)`` = ``2 ** (period_days/210)``.
     At 30d cadence this is ~1.105; at 60d it is ~1.219. Pass an explicit
     value to override (e.g. for the legacy fixed 1.5 / 1.22 anchors).
+
+    ``global_multiplier`` is the planning-doc flat haircut (default 0.25)
+    applied to every per-release multiplier — including R1 (is_initial,
+    so it never actually affects inference revenue but kept consistent).
+    Pass 1.0 to disable.
     """
     if uplift_factor is None:
         uplift_factor = metr_uplift_factor(period_days)
@@ -551,7 +604,7 @@ def equal_cadence_schedule(period_days: int,
         return TrainingSchedule(name=f"every_{period_days}d",
                                 runs=[TrainingRun("R1", horizon_start, r1_release,
                                                   project_compute_mwh(horizon_start, sxm_fraction),
-                                                  token_revenue_multiplier=1.0,
+                                                  token_revenue_multiplier=global_multiplier,
                                                   is_initial=True)])
     # R2, R3, … at `period_days` intervals starting from R1's release.
     release_dates = [r1_release]
@@ -563,7 +616,8 @@ def equal_cadence_schedule(period_days: int,
         release_dates.append(nxt)
         cur = nxt
     multipliers = _per_release_multipliers(release_dates, token_multiplier_scheme,
-                                           uplift_factor=uplift_factor)
+                                           uplift_factor=uplift_factor,
+                                           global_multiplier=global_multiplier)
     runs = []
     for k, (ws, rd, mult) in enumerate(zip(window_starts, release_dates, multipliers),
                                        start=1):

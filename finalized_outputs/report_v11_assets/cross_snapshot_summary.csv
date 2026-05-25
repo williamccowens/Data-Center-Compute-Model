@@ -1,0 +1,9 @@
+drift,stress,cadence_days,procurement,mean_profit_$M
+ai_plus_brent,none,90,LMP only,36375.631156444804
+ai_structural,none,90,LMP only,36376.85591794933
+baseline,none,90,LMP only,36377.2641731484
+mild_drift,none,90,LMP only,36376.651790580225
+ai_plus_brent,uri_full,90,LMP + toll,36364.16195006507
+ai_structural,uri_full,90,LMP + toll,36365.31842042718
+baseline,uri_full,90,LMP + toll,36365.67123829299
+mild_drift,uri_full,90,LMP + toll,36365.09300039315

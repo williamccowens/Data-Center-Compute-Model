@@ -35,7 +35,7 @@ import matplotlib.dates as mdates
 # ── Styling ──────────────────────────────────────────────────────────────
 plt.rcParams.update({
     "figure.dpi":   120,
-    "savefig.dpi":  150,
+    "savefig.dpi":  300,
     "font.size":    10,
     "axes.grid":    True,
     "grid.alpha":   0.3,

@@ -1,0 +1,17 @@
+stress,drift,gas/power,cadence,winner,profit_$M,lmp_only_$M,vs_lmp_$M
+none,baseline,0%/0%,90d,LMP only,"36,377.26","36,377.26",+0.00
+mild,baseline,0%/0%,90d,LMP only,"36,375.61","36,375.61",+0.00
+moderate,baseline,0%/0%,90d,LMP only,"36,374.06","36,374.06",+0.00
+uri_full,baseline,0%/0%,90d,LMP + toll,"36,365.67","36,363.40",+2.27
+none,ai_structural,0.5%/1.0%,90d,LMP only,"36,376.86","36,376.86",+0.00
+mild,ai_structural,0.5%/1.0%,90d,LMP only,"36,375.21","36,375.21",+0.00
+moderate,ai_structural,0.5%/1.0%,90d,LMP only,"36,373.65","36,373.65",+0.00
+uri_full,ai_structural,0.5%/1.0%,90d,LMP + toll,"36,365.32","36,363.00",+2.32
+none,mild_drift,3.0%/1.5%,90d,LMP only,"36,376.65","36,376.65",+0.00
+mild,mild_drift,3.0%/1.5%,90d,LMP only,"36,375.00","36,375.00",+0.00
+moderate,mild_drift,3.0%/1.5%,90d,LMP only,"36,373.45","36,373.45",+0.00
+uri_full,mild_drift,3.0%/1.5%,90d,LMP + toll,"36,365.09","36,362.79",+2.30
+none,ai_plus_brent,6.5%/4.0%,90d,LMP only,"36,375.63","36,375.63",+0.00
+mild,ai_plus_brent,6.5%/4.0%,90d,LMP only,"36,373.99","36,373.99",+0.00
+moderate,ai_plus_brent,6.5%/4.0%,90d,LMP only,"36,372.43","36,372.43",+0.00
+uri_full,ai_plus_brent,6.5%/4.0%,90d,LMP + toll,"36,364.16","36,361.77",+2.39

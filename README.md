@@ -85,7 +85,7 @@ paths under the `doc_blended` token-multiplier scheme (quality uplift ×
 | Verification | 95d confirmed under LMP-only procurement at $148,106.34M |
 | **FINAL POLICY** | **95d × LMP only → $148,106.34M mean profit** |
 
-The 95d cadence is invariant across all four committed drift scenarios (`baseline` / `ai_structural` / `mild_drift` / `ai_plus_brent` — snapshots in `example_outputs_TEMPORARY/`) under both the no-stress and the `uri_full` Uri-storm overlays. The LMP-only procurement choice is invariant only under no-stress; under `uri_full` it **flips to LMP + toll** across all four drifts (see *Uri-stress drift robustness* below). No-stress final profit spans $148,104.70M–$148,106.34M across the four (tight ~$1.6M range, drift is essentially noise at these revenue levels).
+The 95d cadence is invariant across all four committed drift scenarios (`baseline` / `ai_structural` / `mild_drift` / `ai_plus_brent` — snapshots in `finalized_outputs/`) under both the no-stress and the `uri_full` Uri-storm overlays. The LMP-only procurement choice is invariant only under no-stress; under `uri_full` it **flips to LMP + toll** across all four drifts (see *Uri-stress drift robustness* below). No-stress final profit spans $148,104.70M–$148,106.34M across the four (tight ~$1.6M range, drift is essentially noise at these revenue levels).
 
 **Note on the cadence-winner shift vs prior runs:** earlier runs anchored the per-release `uplift_factor` to a fixed 1.5× (and later 1.22×). These were both implicitly tied to a single cadence (the planning doc's 60-day bimonthly) and overstated per-release growth at faster cadences — which is what made 30d cadence appear optimal. Under the corrected METR-anchored cadence-dependent uplift (`metr_uplift_factor(period_days) = 2 ^ (period_days/210)`) total 6-month capability gain is essentially the same across cadences (~1.82×), so the cadence trade-off becomes purely "compute spent on training vs inference time gained." Longer cadences win because they spend less compute on training (each release's compute floor grows with date). The optimal cadence shifted from **30d → 95d**, with profit reset from a spuriously high $217B back down to $148B.
 
@@ -219,7 +219,7 @@ pip install pandas numpy openpyxl pulp matplotlib
 # "Reproduce everything" — runs the headline + procurement sweep + post-processing
 # pipeline for each (drift x stress) combination. Default is 4 drift x {none,
 # uri_full} = 8 scenarios (~5 hr at --mc 50). Each combination writes to its own
-# snapshot folder under example_outputs_TEMPORARY/. Then runs the cross-snapshot
+# snapshot folder under finalized_outputs/. Then runs the cross-snapshot
 # comparison once per stress level (SNAPSHOT_COMPARISON{,_uri_full}.{md,html}) +
 # variable-cost snapshot.
 python model\run_all_drifts.py
@@ -241,8 +241,8 @@ uri_full}` interface so the headline and procurement sweep see the same overlay
 within a stress snapshot.
 
 After completion, the cross-snapshot entry points are
-`example_outputs_TEMPORARY/SNAPSHOT_COMPARISON.md` (no-stress drift set) and
-`example_outputs_TEMPORARY/SNAPSHOT_COMPARISON_uri_full.md` (Uri-stress drift
+`finalized_outputs/SNAPSHOT_COMPARISON.md` (no-stress drift set) and
+`finalized_outputs/SNAPSHOT_COMPARISON_uri_full.md` (Uri-stress drift
 set), with `.html` versions of each for paste-into-Word use. Each snapshot
 folder has its own `RESULTS_TABLES.{md,html}` + `INDEX.md` with the per-snapshot
 details.
@@ -367,11 +367,11 @@ Drift moves final profit by only $1.64M across the full 0 % → 6.5 % gas range 
 | mild_drift (~½ Brent shock)     | 3 % / 1.5 %     | 148,094.19 | LMP + toll | +$2.33M | $11.88 |
 | ai_plus_brent (structural+full) | 6.5 % / 4 %     | 148,093.26 | LMP + toll | +$2.42M | ≳$12 (exceeds sweep max) |
 
-Under Uri-style scarcity, the toll's gross option value at K=$0, 100 MW reservation triples from ~$2.21M (no-stress) to ~$7.10M, comfortably clearing the $4.80M capacity payment at $8/kW-mo. Breakeven K\* rises from ~$3.7 → ~$11.8/kW-mo (and exceeds the $12 sweep max under `ai_plus_brent`). The variable-cost winner remains **LMP + toll + BESS both** in every drift; VC gap widens from ~$5.8M (no-stress) to ~$9.1M (Uri). Cross-snapshot detail lives at `example_outputs_TEMPORARY/SNAPSHOT_COMPARISON_uri_full.{md,html}` + `comparison_figures_uri_full/`.
+Under Uri-style scarcity, the toll's gross option value at K=$0, 100 MW reservation triples from ~$2.21M (no-stress) to ~$7.10M, comfortably clearing the $4.80M capacity payment at $8/kW-mo. Breakeven K\* rises from ~$3.7 → ~$11.8/kW-mo (and exceeds the $12 sweep max under `ai_plus_brent`). The variable-cost winner remains **LMP + toll + BESS both** in every drift; VC gap widens from ~$5.8M (no-stress) to ~$9.1M (Uri). Cross-snapshot detail lives at `finalized_outputs/SNAPSHOT_COMPARISON_uri_full.{md,html}` + `comparison_figures_uri_full/`.
 
 **Per-K hourly note:** the no-stress snapshots emit three per-K regime folders (`lmp_only`, `lmp_plus_toll_100mw`, `lmp_plus_toll_60mw`) because LMP-only wins above K\*≈$3.7. The Uri-stress snapshots emit only the two `lmp_plus_toll_*` regimes — every reported K sits below K\*≈$11.8, so LMP+toll wins everywhere and the `lmp_only` regime is unreachable.
 
-**Variable-cost vs full-cost framing.** The full-cost winner ("LMP only") loses to LMP+toll+BESS-both by ~$5.8M in every drift scenario *if you strip the lease deductions*. That gap is the gross dispatch value the LP would capture if leases were free — useful sanity check that the LP genuinely values the procurement options, just not enough to clear current lease rates. See `example_outputs_TEMPORARY/run_n50_2026-05-23_variable_cost_view/` for the full breakdown (Phase A/B/C reframed).
+**Variable-cost vs full-cost framing.** The full-cost winner ("LMP only") loses to LMP+toll+BESS-both by ~$5.8M in every drift scenario *if you strip the lease deductions*. That gap is the gross dispatch value the LP would capture if leases were free — useful sanity check that the LP genuinely values the procurement options, just not enough to clear current lease rates. See `finalized_outputs/run_n50_2026-05-24_variable_cost_view/` for the full breakdown (Phase A/B/C reframed).
 
 **Multi-K Phase C view.** Each snapshot also reports Phase C at four capacity-payment rates K ∈ {$8 seller-side, 0.9 × K* sub-breakeven, K_interior, $5}, with the rational MW commitment per (scenario × K) cell. At sub-breakeven K (~$3.3), the LP commits 100 MW and `LMP + toll` wins; at K_interior (~K*) it commits 60 MW (a true interior optimum in the narrow ~$0.04-wide band where neither corner dominates); at K ≥ $5 every toll scenario collapses to 0 MW (= equivalent non-toll twin). See each snapshot's `phase_c_multi_k_*.csv` + `figures/08_multi_k_procurement_bars.png`.
 
@@ -449,42 +449,36 @@ All scripts write CSVs into `model/outputs/` (gitignored — reproduce as needed
 
 ---
 
-## ⚠️ Parameters still TBD / awaiting project-team values
+## Finalized parameters (planning doc)
 
-Every TBD parameter is configurable in [model/assumptions.py](model/assumptions.py)
-and is clearly marked. The model code does NOT need to change when these
-are updated — only the assumption values.
+The planning doc supplies finalized hardware throughput + a token-revenue
+haircut. All values live in [model/assumptions.py](model/assumptions.py).
 
-### Hardware spec (planning doc Decision 2)
+### Hardware spec (planning doc finalized)
 
-The planning doc flagged the SXM/PCIe split + sustained TF/s as
-estimates to be finalized:
+| Parameter | Value | Source |
+|---|---|---|
+| `H100_SXM_SUSTAINED_TFLOPS_PER_SEC` | 520 TF/s | ~52% of FP8-dense 989 TF/s — [Narayanan et al. 2021 (arxiv:2104.04473)](https://arxiv.org/abs/2104.04473) end-to-end training efficiency |
+| `H100_PCIE_SUSTAINED_TFLOPS_PER_SEC` | 396 TF/s | Same ~52% of FP8-dense 756 TF/s |
+| `SXM_FRACTION_DEFAULT` | 0.60 (60% SXM, 40% PCIe) | Planning doc: frontier training benefits from SXM/NVLink bandwidth, while future-scale inference is cheaper on PCIe. Sources: [SXM socket reference](https://en.wikipedia.org/wiki/SXM_(socket)) + [thundercompute.com H100 guide](https://www.thundercompute.com/blog/nvidia-h100-specs-full-guide) |
 
-| Parameter | Placeholder | Where | Notes |
-|---|---|---|---|
-| `H100_SXM_SUSTAINED_TFLOPS_PER_SEC` | 500 TF/s | assumptions.py | ~50% of FP8-dense theoretical 989 TF/s |
-| `H100_PCIE_SUSTAINED_TFLOPS_PER_SEC` | 380 TF/s | assumptions.py | ~50% of FP8-dense theoretical 756 TF/s |
-| `SXM_FRACTION_DEFAULT` | 0.60 (60% SXM, 40% PCIe) | assumptions.py | Doc explicitly flagged as TBD |
-
-All three feed `flops_per_compute_mwh()`, which determines how fast
-training converts compute-MWh into FLOPS. Currently we use a single rate
-for both training AND inference workloads — if the project team
-distinguishes them, split into two separate constants and route each to
-its workload.
+All three feed `flops_per_compute_mwh()`, which determines training compute
+throughput. Inference revenue is independent — it uses the RFP-fixed
+5 trillion tokens/day per 80 MW relationship via `TOKENS_PER_COMPUTE_MWH`.
 
 ### Revenue / token-price model
 
 The token-price source and revenue mix are RFP-firm: GPT-5.4Pro daily prices
 on benchlm.ai, blended 2/3 input + 1/3 output. The 5T tokens/day at 80 MW
-implies `TOKENS_PER_COMPUTE_MWH ≈ 2.604e9`, also RFP-firm. The remaining
-choices are how prices evolve through the 6-month horizon — both are now
-anchored to public empirical data:
+implies `TOKENS_PER_COMPUTE_MWH ≈ 2.604e9`, also RFP-firm. Two stacked
+layers shape how revenue evolves through the horizon:
 
 | Parameter | Default | Empirical anchor |
 |---|---|---|
+| `TOKEN_REVENUE_GLOBAL_MULTIPLIER` | **0.25** | Planning-doc flat haircut applied uniformly to every per-release multiplier. Anchored to [OpenRouter](https://openrouter.ai/models) frontier-tier token costs across Qwen 3.5 Max ($2.5/$7.5 per MM), XAI Grok ($1/$2), Gemini 3.5 Flash ($1.5/$9), and Claude Opus 4.7 ($15/$25) — the basket blends to ~$20/MM, ~25% of GPT-5.4Pro's $80/MM blended. Represents the forward competitive-pricing equilibrium; **deviates from the literal RFP wording** ("priced identically with GPT-5.4Pro daily prices") but preserves the GPT-5.4Pro base, so flipping back to RFP-literal pricing is a one-line change (set the constant to 1.0). |
 | `TOKEN_PRICE_HALFLIFE_DAYS` | **270 days (~8.85 mo)** | [benchlm.ai LLM Pricing Trends](https://benchlm.ai/llm-pricing-trends) Price Index fell 100 → 5.5 (94.5 % decline) over March 2023 → April 2026 (~37 months). That implies log₂(100/5.5) ≈ 4.18 halvings, halflife ≈ 37/4.18 ≈ 8.85 months ≈ 270 days. The planning doc's prior 60-day heuristic ("halving every couple of months") was ~4.5× too aggressive. |
 | `UPLIFT_FACTOR_DEFAULT` | **1.22× per release** | [METR's measured AI task-length doubling](https://metr.org/blog/2025-03-19-measuring-ai-ability-to-complete-long-tasks/) of ~7 months (frontier agents through Nov 2025) translated to a 60-day release cadence: 2^(60/210) ≈ 1.22×. Captures the net effect of customers shifting toward more agentic / long-context / reasoning-heavy tasks even as list price per token falls. Bracket: a16z 2024 enterprise survey (2–5× annual spend growth) gives 1.12× – 1.30×. Planning doc's prior 1.5× was too aggressive. |
-| Per-release token multiplier scheme | `doc_blended` | quality-uplift × market-decay; four schemes are available (`constant`, `quality_uplift`, `market_decay`, `doc_blended`) so the team can stress-test the joint anchor. |
+| Per-release token multiplier scheme | `doc_blended` | quality-uplift × market-decay × global-multiplier; four schemes are available (`constant`, `quality_uplift`, `market_decay`, `doc_blended`) so the team can stress-test the joint anchor. The global multiplier composes on top of any scheme. |
 | Tokens per request | (abstracted into `TOKENS_PER_COMPUTE_MWH`) | The RFP's infinite-demand assumption ("demand always equals or exceeds available capacity") makes this unnecessary today. Would become useful as a **future extension** if we replaced infinite demand with a stochastic Poisson request-arrival process — then revenue would be (price × accepted requests) and tokens/request would set the per-request compute load. |
 
 **Why both anchors are needed simultaneously.** The benchlm Price Index
@@ -547,7 +541,7 @@ from the relevant row of `fit_growth_curves.py` output.
 | Item | Default | Notes |
 |---|---|---|
 | DAM vs RT-LMP | DAM (only source available) | RFP requests RT-LMP; we use DAM as the closest available proxy. RT is typically more volatile ⇒ would slightly increase value of tolling and BESS arbitrage. |
-| Forward-curve drift | None (`--gas-drift-pct 0 --power-drift-pct 0`) | OU calibrated on 2025 actuals. `monte_carlo.apply_drift()` adds an additive shift to the long-run log-mean of each series, so a +5 % HH bump corresponds to `gas_drift_pct=0.05`. Four named scenarios are documented and committed as snapshots under `example_outputs_TEMPORARY/`: **baseline** (`0 / 0` — EIA STEO May-2026 short-term view, HH 2026 ≈ $3.50/MMBtu vs 2025 actual $3.53), **ai_structural** (`0.005 / 0.01` — secular ERCOT load growth from data-center buildout per ERCOT CDR + EIA AEO 2026), **mild_drift** (`0.03 / 0.015` — ~half geopolitical Brent shock via Brent→HH 0.2 + HH→LMP 0.5 elasticities), **ai_plus_brent** (`0.065 / 0.04` — structural + full +30 % Brent shock, max-stress combined scenario). |
+| Forward-curve drift | None (`--gas-drift-pct 0 --power-drift-pct 0`) | OU calibrated on 2025 actuals. `monte_carlo.apply_drift()` adds an additive shift to the long-run log-mean of each series, so a +5 % HH bump corresponds to `gas_drift_pct=0.05`. Four named scenarios are documented and committed as snapshots under `finalized_outputs/`: **baseline** (`0 / 0` — EIA STEO May-2026 short-term view, HH 2026 ≈ $3.50/MMBtu vs 2025 actual $3.53), **ai_structural** (`0.005 / 0.01` — secular ERCOT load growth from data-center buildout per ERCOT CDR + EIA AEO 2026), **mild_drift** (`0.03 / 0.015` — ~half geopolitical Brent shock via Brent→HH 0.2 + HH→LMP 0.5 elasticities), **ai_plus_brent** (`0.065 / 0.04` — structural + full +30 % Brent shock, max-stress combined scenario). |
 | MC path count | 50 (default) | Tight enough for both decisions. Cadence: gaps are billions, path-stdev ~$1M (z ≫ 1000). Procurement: paired/CRN comparison across the 8 combos (each combo runs on the same MC paths) collapses standalone std ~$1.1M to **paired-delta std ~$0.05-0.20M**, so even the closest Phase C gap (~$1.3M LMP-only vs LMP+BESS-West) has z ≈ 21. See `model/outputs/power_procurement_deltas_n50_doc_blended.csv`. |
 
 ### Tolling parameters

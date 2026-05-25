@@ -1,0 +1,385 @@
+==============================================================================
+HEADLINE OPTIMIZATION DRIVER
+==============================================================================
+  scheme         : doc_blended
+  toll           : True
+  bess (both)    : True
+  toll daily cap : none (unconstrained)
+  RFP 500 floor  : 500.0 MWh-grid/day (mandatory)
+  fwd-curve drift: gas +0.0%, power +0.0%
+  mode           : Monte Carlo, N=50
+  stress         : moderate (FTG phase-4 overlay, 96h @ $500–$1500/MWh, p=0.20)
+
+[Calibrate + simulate] 50 MC paths via monte_carlo.calibrate_and_simulate() ...
+    series transform  shift  kappa  sigma  halflife_hr  dt_hours
+HB_HOUSTON       log   1.10 0.0719 0.2026       9.6341       1.0
+   HB_WEST       log  14.21 0.0439 0.1617      15.7783       1.0
+  HenryHub       log   0.00 0.0183 0.0197     907.7886      24.0
+
+[Stress overlay 'moderate' applied to MC paths]
+series      mean  median_max     p95_max  frac_paths_max>500$  frac_paths_max>2000$
+  base 38.612293  319.338226  509.258301                 0.06                   0.0
+stress 42.379753  338.095123 1495.764160                 0.24                   0.0
+  ⚠ Filtered out (fail 500/day floor or grid capacity): [10, 15, 20, 120, 150, 180]
+
+[Phase A — Stage 1] Cadences: ['25d', '30d', '45d', '60d', '75d', '90d'] (from [10, 15, 20, 25, 30, 45, 60, 75, 90, 120, 150, 180])
+  [S1 25d]   5/50
+  [S1 25d]  10/50
+  [S1 25d]  15/50
+  [S1 25d]  20/50
+  [S1 25d]  25/50
+  [S1 25d]  30/50
+  [S1 25d]  35/50
+  [S1 25d]  40/50
+  [S1 25d]  45/50
+  [S1 25d]  50/50
+  25d           mean profit across paths = $   15,644.1M
+  [S1 30d]   5/50
+  [S1 30d]  10/50
+  [S1 30d]  15/50
+  [S1 30d]  20/50
+  [S1 30d]  25/50
+  [S1 30d]  30/50
+  [S1 30d]  35/50
+  [S1 30d]  40/50
+  [S1 30d]  45/50
+  [S1 30d]  50/50
+  30d           mean profit across paths = $   19,745.6M
+  [S1 45d]   5/50
+  [S1 45d]  10/50
+  [S1 45d]  15/50
+  [S1 45d]  20/50
+  [S1 45d]  25/50
+  [S1 45d]  30/50
+  [S1 45d]  35/50
+  [S1 45d]  40/50
+  [S1 45d]  45/50
+  [S1 45d]  50/50
+  45d           mean profit across paths = $   27,065.5M
+  [S1 60d]   5/50
+  [S1 60d]  10/50
+  [S1 60d]  15/50
+  [S1 60d]  20/50
+  [S1 60d]  25/50
+  [S1 60d]  30/50
+  [S1 60d]  35/50
+  [S1 60d]  40/50
+  [S1 60d]  45/50
+  [S1 60d]  50/50
+  60d           mean profit across paths = $   31,207.6M
+  [S1 75d]   5/50
+  [S1 75d]  10/50
+  [S1 75d]  15/50
+  [S1 75d]  20/50
+  [S1 75d]  25/50
+  [S1 75d]  30/50
+  [S1 75d]  35/50
+  [S1 75d]  40/50
+  [S1 75d]  45/50
+  [S1 75d]  50/50
+  75d           mean profit across paths = $   34,140.9M
+  [S1 90d]   5/50
+  [S1 90d]  10/50
+  [S1 90d]  15/50
+  [S1 90d]  20/50
+  [S1 90d]  25/50
+  [S1 90d]  30/50
+  [S1 90d]  35/50
+  [S1 90d]  40/50
+  [S1 90d]  45/50
+  [S1 90d]  50/50
+  90d           mean profit across paths = $   36,370.7M
+
+  Stage-1 winner: 90d (mean $36,370.7M)
+
+[Phase A — Stage 2] Refining around 90d → ['63d', '74d', '85d']
+  [S2 63d]   5/50
+  [S2 63d]  10/50
+  [S2 63d]  15/50
+  [S2 63d]  20/50
+  [S2 63d]  25/50
+  [S2 63d]  30/50
+  [S2 63d]  35/50
+  [S2 63d]  40/50
+  [S2 63d]  45/50
+  [S2 63d]  50/50
+  63d           mean profit across paths = $   31,871.9M
+  [S2 74d]   5/50
+  [S2 74d]  10/50
+  [S2 74d]  15/50
+  [S2 74d]  20/50
+  [S2 74d]  25/50
+  [S2 74d]  30/50
+  [S2 74d]  35/50
+  [S2 74d]  40/50
+  [S2 74d]  45/50
+  [S2 74d]  50/50
+  74d           mean profit across paths = $   33,974.6M
+  [S2 85d]   5/50
+  [S2 85d]  10/50
+  [S2 85d]  15/50
+  [S2 85d]  20/50
+  [S2 85d]  25/50
+  [S2 85d]  30/50
+  [S2 85d]  35/50
+  [S2 85d]  40/50
+  [S2 85d]  45/50
+  [S2 85d]  50/50
+  85d           mean profit across paths = $   35,585.2M
+
+[Phase A complete in 2.6 min]
+
+==============================================================================
+PHASE B — Locked-cadence results  (90d, averaged across 50 MC paths)
+==============================================================================
+  Inference revenue             36,411.40 $M
+  BESS sell-to-grid revenue          6.08 $M
+  ─ LMP power cost          −       28.34
+  ─ Toll power cost         −        4.58
+  ─ Toll 6-mo capacity pay  −        4.80
+  ─ BESS charge cost        −        3.10
+  ─ BESS 6-mo lease         −        6.00
+  ──────────────────────────────────────
+  PROFIT                        36,370.66 $M
+
+  Profit distribution across paths ($M):
+    mean =   36,370.7
+    std  =        3.8
+    p05  =   36,362.4
+    p50  =   36,371.9
+    p95  =   36,373.8
+
+  LP's hourly procurement choices (MWh, averaged across paths):
+    LMP grid draw          783,504  (91.3% of total)
+    Tolling draw            74,694  (8.7%)
+    BESS charge            116,066
+    BESS discharge → DC     15,789
+    BESS discharge→grid     90,991
+    Training (grid-MWh)    157,296
+    Inference (grid-MWh)   716,691
+
+PHASE A RANKING — mean profit across 50 paths, by cadence
+cadence   mean_$M  std_$M    p05_$M    p95_$M
+    90d 36,370.66    3.83 36,362.37 36,373.78
+    85d 35,585.19    3.83 35,576.90 35,588.31
+    75d 34,140.91    3.83 34,132.62 34,144.03
+    74d 33,974.59    3.83 33,966.30 33,977.71
+    63d 31,871.91    3.83 31,863.62 31,875.03
+    60d 31,207.63    3.83 31,199.34 31,210.74
+    45d 27,065.47    3.83 27,057.18 27,068.59
+    30d 19,745.60    3.83 19,737.31 19,748.72
+    25d 15,644.11    3.83 15,635.82 15,647.22
+
+⭐ Optimal cadence: 90d  →  mean profit $36,370.7M
+
+==============================================================================
+PHASE C — Procurement optimization at cadence 90d
+==============================================================================
+  [LMP_only]   5/50
+  [LMP_only]  10/50
+  [LMP_only]  15/50
+  [LMP_only]  20/50
+  [LMP_only]  25/50
+  [LMP_only]  30/50
+  [LMP_only]  35/50
+  [LMP_only]  40/50
+  [LMP_only]  45/50
+  [LMP_only]  50/50
+  LMP only                   mean=$  36,374.06M  std=$7.38M
+  [LMP_+_toll]   5/50
+  [LMP_+_toll]  10/50
+  [LMP_+_toll]  15/50
+  [LMP_+_toll]  20/50
+  [LMP_+_toll]  25/50
+  [LMP_+_toll]  30/50
+  [LMP_+_toll]  35/50
+  [LMP_+_toll]  40/50
+  [LMP_+_toll]  45/50
+  [LMP_+_toll]  50/50
+  LMP + toll                 mean=$  36,372.79M  std=$4.51M
+  [LMP_+_BESS_Houston]   5/50
+  [LMP_+_BESS_Houston]  10/50
+  [LMP_+_BESS_Houston]  15/50
+  [LMP_+_BESS_Houston]  20/50
+  [LMP_+_BESS_Houston]  25/50
+  [LMP_+_BESS_Houston]  30/50
+  [LMP_+_BESS_Houston]  35/50
+  [LMP_+_BESS_Houston]  40/50
+  [LMP_+_BESS_Houston]  45/50
+  [LMP_+_BESS_Houston]  50/50
+  LMP + BESS Houston         mean=$  36,372.86M  std=$7.04M
+  [LMP_+_BESS_West]   5/50
+  [LMP_+_BESS_West]  10/50
+  [LMP_+_BESS_West]  15/50
+  [LMP_+_BESS_West]  20/50
+  [LMP_+_BESS_West]  25/50
+  [LMP_+_BESS_West]  30/50
+  [LMP_+_BESS_West]  35/50
+  [LMP_+_BESS_West]  40/50
+  [LMP_+_BESS_West]  45/50
+  [LMP_+_BESS_West]  50/50
+  LMP + BESS West            mean=$  36,373.13M  std=$7.03M
+  [LMP_+_BESS_both]   5/50
+  [LMP_+_BESS_both]  10/50
+  [LMP_+_BESS_both]  15/50
+  [LMP_+_BESS_both]  20/50
+  [LMP_+_BESS_both]  25/50
+  [LMP_+_BESS_both]  30/50
+  [LMP_+_BESS_both]  35/50
+  [LMP_+_BESS_both]  40/50
+  [LMP_+_BESS_both]  45/50
+  [LMP_+_BESS_both]  50/50
+  LMP + BESS both            mean=$  36,371.93M  std=$6.69M
+  [LMP_+_toll_+_BESS_Houston]   5/50
+  [LMP_+_toll_+_BESS_Houston]  10/50
+  [LMP_+_toll_+_BESS_Houston]  15/50
+  [LMP_+_toll_+_BESS_Houston]  20/50
+  [LMP_+_toll_+_BESS_Houston]  25/50
+  [LMP_+_toll_+_BESS_Houston]  30/50
+  [LMP_+_toll_+_BESS_Houston]  35/50
+  [LMP_+_toll_+_BESS_Houston]  40/50
+  [LMP_+_toll_+_BESS_Houston]  45/50
+  [LMP_+_toll_+_BESS_Houston]  50/50
+  LMP + toll + BESS Houston  mean=$  36,371.59M  std=$4.17M
+  [LMP_+_toll_+_BESS_West]   5/50
+  [LMP_+_toll_+_BESS_West]  10/50
+  [LMP_+_toll_+_BESS_West]  15/50
+  [LMP_+_toll_+_BESS_West]  20/50
+  [LMP_+_toll_+_BESS_West]  25/50
+  [LMP_+_toll_+_BESS_West]  30/50
+  [LMP_+_toll_+_BESS_West]  35/50
+  [LMP_+_toll_+_BESS_West]  40/50
+  [LMP_+_toll_+_BESS_West]  45/50
+  [LMP_+_toll_+_BESS_West]  50/50
+  LMP + toll + BESS West     mean=$  36,371.86M  std=$4.16M
+  [LMP_+_toll_+_BESS_both]   5/50
+  [LMP_+_toll_+_BESS_both]  10/50
+  [LMP_+_toll_+_BESS_both]  15/50
+  [LMP_+_toll_+_BESS_both]  20/50
+  [LMP_+_toll_+_BESS_both]  25/50
+  [LMP_+_toll_+_BESS_both]  30/50
+  [LMP_+_toll_+_BESS_both]  35/50
+  [LMP_+_toll_+_BESS_both]  40/50
+  [LMP_+_toll_+_BESS_both]  45/50
+  [LMP_+_toll_+_BESS_both]  50/50
+  LMP + toll + BESS both     mean=$  36,370.66M  std=$3.83M
+
+Procurement ranking (mean profit across paths, $M):
+                 scenario   mean_$M  std_$M    p05_$M    p95_$M
+                 LMP only 36,374.06    7.38 36,357.56 36,379.25
+          LMP + BESS West 36,373.13    7.03 36,357.34 36,378.05
+       LMP + BESS Houston 36,372.86    7.04 36,357.15 36,377.81
+               LMP + toll 36,372.79    4.51 36,362.99 36,376.33
+          LMP + BESS both 36,371.93    6.69 36,356.94 36,376.61
+   LMP + toll + BESS West 36,371.86    4.16 36,362.78 36,375.18
+LMP + toll + BESS Houston 36,371.59    4.17 36,362.59 36,374.93
+   LMP + toll + BESS both 36,370.66    3.83 36,362.37 36,373.78
+
+⭐ Optimal procurement: LMP only  →  $36,374.06M mean profit
+
+==============================================================================
+VERIFICATION — Re-checking cadence winner under optimal procurement
+==============================================================================
+  Testing cadences: ['63d', '74d', '85d', '90d']
+  [V 63d]   5/50
+  [V 63d]  10/50
+  [V 63d]  15/50
+  [V 63d]  20/50
+  [V 63d]  25/50
+  [V 63d]  30/50
+  [V 63d]  35/50
+  [V 63d]  40/50
+  [V 63d]  45/50
+  [V 63d]  50/50
+  63d         mean=$  31,875.31M
+  [V 74d]   5/50
+  [V 74d]  10/50
+  [V 74d]  15/50
+  [V 74d]  20/50
+  [V 74d]  25/50
+  [V 74d]  30/50
+  [V 74d]  35/50
+  [V 74d]  40/50
+  [V 74d]  45/50
+  [V 74d]  50/50
+  74d         mean=$  33,977.99M
+  [V 85d]   5/50
+  [V 85d]  10/50
+  [V 85d]  15/50
+  [V 85d]  20/50
+  [V 85d]  25/50
+  [V 85d]  30/50
+  [V 85d]  35/50
+  [V 85d]  40/50
+  [V 85d]  45/50
+  [V 85d]  50/50
+  85d         mean=$  35,588.59M
+  [V 90d]   5/50
+  [V 90d]  10/50
+  [V 90d]  15/50
+  [V 90d]  20/50
+  [V 90d]  25/50
+  [V 90d]  30/50
+  [V 90d]  35/50
+  [V 90d]  40/50
+  [V 90d]  45/50
+  [V 90d]  50/50
+  90d         mean=$  36,374.06M ← initial winner
+
+  ✓ Cadence winner confirmed: 90d is still optimal under Scenario(use_houston_tolling=False, use_bess=False, bess_sites=('HOUSTON', 'WEST'), token_input_price_per_mm=30.0, token_output_price_per_mm=180.0, training_min_mwh_per_day=500.0, toll_max_mwh_per_day=None, toll_mw_reserved=None)
+
+==============================================================================
+FINAL OPTIMAL POLICY
+==============================================================================
+  Cadence:        90d  (confirmed)
+  Procurement:    LMP only
+  Mean profit:    $36,374.06M (across 50 paths, includes all fixed costs)
+
+==============================================================================
+HOURLY SCHEDULE — winning cadence 90d (across 50 MC paths)
+==============================================================================
+  Re-solving 50 paths to recover per-path hourly schedules ...
+  All per-path schedules saved   → hourly_winner_all_paths_n50_doc_blended.csv  (439,200 rows)
+  Averaged-across-paths schedule → hourly_winner_avg_n50_doc_blended.csv  (8,784 rows)
+
+  Sample (first 24 hours at HOUSTON, mean ± std across 50 paths):
+           datetime   lmp        g_lmp       g_toll        train          inf train_compute_mwh inf_compute_mwh
+2026-06-01 00:00:00 27.70  100.0          0.0        100.0          0.0              80.0             0.0      
+2026-06-01 01:00:00 25.49  100.0          0.0        100.0          0.0              80.0             0.0      
+2026-06-01 02:00:00 24.97  100.0          0.0        100.0          0.0              80.0             0.0      
+2026-06-01 03:00:00 24.94  100.0          0.0        100.0          0.0              80.0             0.0      
+2026-06-01 04:00:00 25.15  100.0          0.0        100.0          0.0              80.0             0.0      
+2026-06-01 05:00:00 27.38  100.0          0.0        100.0          0.0              80.0             0.0      
+2026-06-01 06:00:00 29.30  100.0          0.0        100.0          0.0              80.0             0.0      
+2026-06-01 07:00:00 26.84    98.0±14.1    0.0          98.0±14.1    0.0               78.4±11.3       0.0      
+2026-06-01 08:00:00 21.37  100.0          0.0        100.0          0.0              80.0             0.0      
+2026-06-01 09:00:00 21.60  100.0          0.0        100.0          0.0              80.0             0.0      
+2026-06-01 10:00:00 25.43  100.0          0.0        100.0          0.0              80.0             0.0      
+2026-06-01 11:00:00 29.51    98.0±14.1    0.0          98.0±14.1    0.0               78.4±11.3       0.0      
+2026-06-01 12:00:00 35.92    96.0±19.8    0.0          96.0±19.8    0.0               76.8±15.8       0.0      
+2026-06-01 13:00:00 39.23    92.0±27.4    0.0          92.0±27.4    0.0               73.6±21.9       0.0      
+2026-06-01 14:00:00 41.02    92.0±27.4    0.0          92.0±27.4    0.0               73.6±21.9       0.0      
+2026-06-01 15:00:00 43.09    92.0±27.4    0.0          92.0±27.4    0.0               73.6±21.9       0.0      
+2026-06-01 16:00:00 43.17    93.7±24.0    0.0          93.7±24.0    0.0               75.0±19.2       0.0      
+2026-06-01 17:00:00 41.97    95.5±19.9    0.0          95.5±19.9    0.0               76.4±15.9       0.0      
+2026-06-01 18:00:00 47.30    88.0±32.8    0.0          88.0±32.8    0.0               70.4±26.3       0.0      
+2026-06-01 19:00:00 74.59    66.0±47.9    0.0          66.0±47.9    0.0               52.8±38.3       0.0      
+2026-06-01 20:00:00 82.08    64.0±48.5    0.0          64.0±48.5    0.0               51.2±38.8       0.0      
+2026-06-01 21:00:00 62.65    80.0±40.4    0.0          80.0±40.4    0.0               64.0±32.3       0.0      
+2026-06-01 22:00:00 43.90    92.0±27.4    0.0          92.0±27.4    0.0               73.6±21.9       0.0      
+2026-06-01 23:00:00 36.07    94.0±24.0    0.0          94.0±24.0    0.0               75.2±19.2       0.0      
+  (skip 06) no capacity_payment_sweep_*.csv found
+  (skip 07) no power_procurement_mc_*.csv found
+  Result figures (5) → figures/
+    01_train_inf_diurnal.png
+    02_train_inf_cost_daily.png
+    03b_procurement_mix_daily.png
+    04_lmp_toll_overlay.png
+    05_power_cost_fan_daily.png
+
+==============================================================================
+RUN SUMMARY consolidated → run_summary_n50_doc_blended_stress-moderate.json
+==============================================================================
+  Final policy: 90d × LMP only
+  Mean profit:  $36,374.06M across 50 MC paths
+  Output CSVs co-located in:  C:\Users\WCCO\Documents\GitHub\FTG Final\model\outputs

@@ -1,0 +1,190 @@
+Generating 50 MC paths (seed=42, no drift, tail_q calibration)...
+Building 90d schedule (doc_blended scheme)...
+
+=== NO-STRESS ===
+  [baseline] solving 50 paths at toll_mw_reserved=0.0 MW ...
+  [baseline mw=0.0]   5/50
+  [baseline mw=0.0]  10/50
+  [baseline mw=0.0]  15/50
+  [baseline mw=0.0]  20/50
+  [baseline mw=0.0]  25/50
+  [baseline mw=0.0]  30/50
+  [baseline mw=0.0]  35/50
+  [baseline mw=0.0]  40/50
+  [baseline mw=0.0]  45/50
+  [baseline mw=0.0]  50/50
+    mean profit = $36,377.2642M
+  [baseline] solving 50 paths at toll_mw_reserved=20.0 MW ...
+  [baseline mw=20.0]   5/50
+  [baseline mw=20.0]  10/50
+  [baseline mw=20.0]  15/50
+  [baseline mw=20.0]  20/50
+  [baseline mw=20.0]  25/50
+  [baseline mw=20.0]  30/50
+  [baseline mw=20.0]  35/50
+  [baseline mw=20.0]  40/50
+  [baseline mw=20.0]  45/50
+  [baseline mw=20.0]  50/50
+    mean profit = $36,376.7432M
+  [baseline] solving 50 paths at toll_mw_reserved=40.0 MW ...
+  [baseline mw=40.0]   5/50
+  [baseline mw=40.0]  10/50
+  [baseline mw=40.0]  15/50
+  [baseline mw=40.0]  20/50
+  [baseline mw=40.0]  25/50
+  [baseline mw=40.0]  30/50
+  [baseline mw=40.0]  35/50
+  [baseline mw=40.0]  40/50
+  [baseline mw=40.0]  45/50
+  [baseline mw=40.0]  50/50
+    mean profit = $36,376.2209M
+  [baseline] solving 50 paths at toll_mw_reserved=60.0 MW ...
+  [baseline mw=60.0]   5/50
+  [baseline mw=60.0]  10/50
+  [baseline mw=60.0]  15/50
+  [baseline mw=60.0]  20/50
+  [baseline mw=60.0]  25/50
+  [baseline mw=60.0]  30/50
+  [baseline mw=60.0]  35/50
+  [baseline mw=60.0]  40/50
+  [baseline mw=60.0]  45/50
+  [baseline mw=60.0]  50/50
+    mean profit = $36,375.6972M
+  [baseline] solving 50 paths at toll_mw_reserved=80.0 MW ...
+  [baseline mw=80.0]   5/50
+  [baseline mw=80.0]  10/50
+  [baseline mw=80.0]  15/50
+  [baseline mw=80.0]  20/50
+  [baseline mw=80.0]  25/50
+  [baseline mw=80.0]  30/50
+  [baseline mw=80.0]  35/50
+  [baseline mw=80.0]  40/50
+  [baseline mw=80.0]  45/50
+  [baseline mw=80.0]  50/50
+    mean profit = $36,375.1717M
+  [baseline] solving 50 paths at toll_mw_reserved=100.0 MW ...
+  [baseline mw=100.0]   5/50
+  [baseline mw=100.0]  10/50
+  [baseline mw=100.0]  15/50
+  [baseline mw=100.0]  20/50
+  [baseline mw=100.0]  25/50
+  [baseline mw=100.0]  30/50
+  [baseline mw=100.0]  35/50
+  [baseline mw=100.0]  40/50
+  [baseline mw=100.0]  45/50
+  [baseline mw=100.0]  50/50
+    mean profit = $36,374.6443M
+Saved C:\Users\WCCO\Documents\GitHub\FTG Final\finalized_outputs\report_v11_assets\capacity_payment_sweep_90d_baseline.csv
+
+=== URI-STRESS ===
+  [uri_full] solving 50 paths at toll_mw_reserved=0.0 MW ...
+  [uri_full mw=0.0]   5/50
+  [uri_full mw=0.0]  10/50
+  [uri_full mw=0.0]  15/50
+  [uri_full mw=0.0]  20/50
+  [uri_full mw=0.0]  25/50
+  [uri_full mw=0.0]  30/50
+  [uri_full mw=0.0]  35/50
+  [uri_full mw=0.0]  40/50
+  [uri_full mw=0.0]  45/50
+  [uri_full mw=0.0]  50/50
+    mean profit = $36,363.4028M
+  [uri_full] solving 50 paths at toll_mw_reserved=20.0 MW ...
+  [uri_full mw=20.0]   5/50
+  [uri_full mw=20.0]  10/50
+  [uri_full mw=20.0]  15/50
+  [uri_full mw=20.0]  20/50
+  [uri_full mw=20.0]  25/50
+  [uri_full mw=20.0]  30/50
+  [uri_full mw=20.0]  35/50
+  [uri_full mw=20.0]  40/50
+  [uri_full mw=20.0]  45/50
+  [uri_full mw=20.0]  50/50
+    mean profit = $36,363.8595M
+  [uri_full] solving 50 paths at toll_mw_reserved=40.0 MW ...
+  [uri_full mw=40.0]   5/50
+  [uri_full mw=40.0]  10/50
+  [uri_full mw=40.0]  15/50
+  [uri_full mw=40.0]  20/50
+  [uri_full mw=40.0]  25/50
+  [uri_full mw=40.0]  30/50
+  [uri_full mw=40.0]  35/50
+  [uri_full mw=40.0]  40/50
+  [uri_full mw=40.0]  45/50
+  [uri_full mw=40.0]  50/50
+    mean profit = $36,364.3149M
+  [uri_full] solving 50 paths at toll_mw_reserved=60.0 MW ...
+  [uri_full mw=60.0]   5/50
+  [uri_full mw=60.0]  10/50
+  [uri_full mw=60.0]  15/50
+  [uri_full mw=60.0]  20/50
+  [uri_full mw=60.0]  25/50
+  [uri_full mw=60.0]  30/50
+  [uri_full mw=60.0]  35/50
+  [uri_full mw=60.0]  40/50
+  [uri_full mw=60.0]  45/50
+  [uri_full mw=60.0]  50/50
+    mean profit = $36,364.7688M
+  [uri_full] solving 50 paths at toll_mw_reserved=80.0 MW ...
+  [uri_full mw=80.0]   5/50
+  [uri_full mw=80.0]  10/50
+  [uri_full mw=80.0]  15/50
+  [uri_full mw=80.0]  20/50
+  [uri_full mw=80.0]  25/50
+  [uri_full mw=80.0]  30/50
+  [uri_full mw=80.0]  35/50
+  [uri_full mw=80.0]  40/50
+  [uri_full mw=80.0]  45/50
+  [uri_full mw=80.0]  50/50
+    mean profit = $36,365.2210M
+  [uri_full] solving 50 paths at toll_mw_reserved=100.0 MW ...
+  [uri_full mw=100.0]   5/50
+  [uri_full mw=100.0]  10/50
+  [uri_full mw=100.0]  15/50
+  [uri_full mw=100.0]  20/50
+  [uri_full mw=100.0]  25/50
+concurrent.futures.process._RemoteTraceback: 
+"""
+Traceback (most recent call last):
+  File "C:\Python314\Lib\concurrent\futures\process.py", line 254, in _process_worker
+    r = call_item.fn(*call_item.args, **call_item.kwargs)
+  File "C:\Users\WCCO\Documents\GitHub\FTG Final\model\optimize.py", line 421, in _worker_solve
+    res = build_and_solve(prices, gas, scenario, schedule, solver_msg=False)
+  File "C:\Users\WCCO\Documents\GitHub\FTG Final\model\optimize.py", line 272, in build_and_solve
+    m += (revenue_inf + revenue_bess_grid
+          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+          - cost_lmp - cost_toll - cost_bess_ch - tie_break)
+          ~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~
+  File "C:\Users\WCCO\AppData\Roaming\Python\Python314\site-packages\pulp\pulp.py", line 1139, in __sub__
+    return self.copy().subInPlace(other)
+           ~~~~~~~~~^^
+  File "C:\Users\WCCO\AppData\Roaming\Python\Python314\site-packages\pulp\pulp.py", line 964, in copy
+    return LpAffineExpression(self)
+  File "C:\Users\WCCO\AppData\Roaming\Python\Python314\site-packages\pulp\pulp.py", line 908, in __init__
+    super().__init__(e.items())
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^
+MemoryError
+"""
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\WCCO\Documents\GitHub\FTG Final\regen_k_sweep_90d.py", line 103, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\WCCO\Documents\GitHub\FTG Final\regen_k_sweep_90d.py", line 44, in main
+    run_one(sim_uri,  schedule, 'uri_full')
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\WCCO\Documents\GitHub\FTG Final\regen_k_sweep_90d.py", line 63, in run_one
+    bds = solve_across_paths(prices_list, gas_list, scenario, schedule,
+                             parallel=True,
+                             progress_label=f'{label} mw={mw}')
+  File "C:\Users\WCCO\Documents\GitHub\FTG Final\model\optimize.py", line 484, in solve_across_paths
+    i, bd = fut.result()
+            ~~~~~~~~~~^^
+  File "C:\Python314\Lib\concurrent\futures\_base.py", line 443, in result
+    return self.__get_result()
+           ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\concurrent\futures\_base.py", line 395, in __get_result
+    raise self._exception
+MemoryError

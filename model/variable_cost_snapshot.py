@@ -21,7 +21,7 @@ C: under variable-cost framing, "LMP + toll + BESS both" wins because
 the LP loves the dispatch flexibility — the same scenario that loses
 under full-cost framing because the leases consume the gross value.
 
-Outputs in `example_outputs_TEMPORARY/run_n{N}_<date>_variable_cost_view/`:
+Outputs in `finalized_outputs/run_n{N}_<date>_variable_cost_view/`:
 
   * INDEX.md                          — narrative + how to read this
   * mc_summary_variable_cost.csv      — per-cadence variable-cost profit
@@ -49,7 +49,7 @@ import assumptions as A
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-SNAPS_PARENT = PROJECT_ROOT / "example_outputs_TEMPORARY"
+SNAPS_PARENT = PROJECT_ROOT / "finalized_outputs"
 
 COLOR_FULL = "#1f77b4"
 COLOR_VAR  = "#2ca02c"

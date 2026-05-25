@@ -1,7 +1,7 @@
 """
 Run the headline + sweep + post-processing pipeline for every committed
 drift scenario, writing each into its own snapshot folder under
-`example_outputs_TEMPORARY/`. This is the "reproduce everything" entry
+`finalized_outputs/`. This is the "reproduce everything" entry
 point — `python model/run_all_drifts.py`.
 
 For each drift scenario, in order:
@@ -25,7 +25,7 @@ After all four scenarios, runs
   7. `python model/variable_cost_snapshot.py` — 5th 'variable-cost view'
      snapshot showing Phase A/B's pre-lease LP profits.
 
-End-state: every artifact in `example_outputs_TEMPORARY/` is rebuilt
+End-state: every artifact in `finalized_outputs/` is rebuilt
 from scratch under the current model code.
 
 Each step writes its console output to `<snapshot>/headline_stdout.log`
@@ -53,7 +53,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 MODEL_DIR    = PROJECT_ROOT / "model"
 OUTPUTS_DIR  = MODEL_DIR / "outputs"
-SNAPS_PARENT = PROJECT_ROOT / "example_outputs_TEMPORARY"
+SNAPS_PARENT = PROJECT_ROOT / "finalized_outputs"
 
 
 # Drift configurations — must mirror the labels and gas/power overlays
@@ -75,6 +75,8 @@ DRIFT_SCENARIOS = {
 # gas, p=0.05 per path) so the toll's tail-insurance value is visible.
 STRESS_OVERLAYS = {
     "none":     {"desc": "no stress overlay (no-stress baseline)"},
+    "mild":     {"desc": "Mild scarcity (72h spike, $200-$400/MWh, p=0.50)"},
+    "moderate": {"desc": "Moderate scarcity (96h spike, $500-$1500/MWh + $20 HH, p=0.20)"},
     "uri_full": {"desc": "FTG phase-4 Uri scenario (100h spike, $5K-9K/MWh, p=0.05)"},
 }
 

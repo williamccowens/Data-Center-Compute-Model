@@ -1,7 +1,7 @@
 """
 Cross-snapshot comparison tool.
 
-Discovers every `run_n50_*` directory under `example_outputs_TEMPORARY/`
+Discovers every `run_n50_*` directory under `finalized_outputs/`
 (or a different parent passed on the command line) and produces:
 
   * `SNAPSHOT_COMPARISON.md`   — github-rendered tables.
@@ -467,7 +467,7 @@ def _build_documents(snaps: list[Snapshot], parent: Path,
     md_lines.append(f"# Snapshot comparison {stress_note}\n")
     md_lines.append("Cross-scenario view of the four 50-path Monte Carlo "
                     "drift scenarios committed under "
-                    f"`example_outputs_TEMPORARY/` {stress_note}. Each snapshot "
+                    f"`finalized_outputs/` {stress_note}. Each snapshot "
                     "is the same model under a different gas / power "
                     "forward-curve overlay. For a downloadable version that "
                     "pastes cleanly into Word or Google Docs, open "
@@ -555,7 +555,7 @@ def _build_documents(snaps: list[Snapshot], parent: Path,
 
 
 # ── Orchestrator ────────────────────────────────────────────────────────
-def compare(parent: str | Path = "example_outputs_TEMPORARY",
+def compare(parent: str | Path = "finalized_outputs",
             stress_label: str = "none") -> list[Path]:
     parent = Path(parent)
     if not parent.exists():
@@ -589,9 +589,9 @@ def compare(parent: str | Path = "example_outputs_TEMPORARY",
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("parent_dir", nargs="?",
-                        default="example_outputs_TEMPORARY",
+                        default="finalized_outputs",
                         help="Parent directory containing run_n50_*/ "
-                             "snapshots (default: example_outputs_TEMPORARY).")
+                             "snapshots (default: finalized_outputs).")
     parser.add_argument("--stress", default="none",
                         help="Stress overlay to filter snapshots by. "
                              "'none' (default) compares no-stress snapshots; "
