@@ -80,14 +80,14 @@ paths under the `doc_blended` token-multiplier scheme (quality uplift ×
 
 | Step | Result |
 |---|---|
-| Phase A cadence winner | **95 days** at $148,101.32M (Phase B all-on diagnostic, with $4.80M toll capacity payment + $6M BESS lease deducted) |
-| Phase C procurement winner | **LMP only** — toll gross value ($2.21M) doesn't cover its $4.80M capacity payment; BESS arb doesn't cover its $3M/site lease |
-| Verification | 95d confirmed under LMP-only procurement at $148,106.34M |
-| **FINAL POLICY** | **95d × LMP only → $148,106.34M mean profit** |
+| Phase A cadence winner | **90 days** at $36,372.21M (Phase B all-on diagnostic, with $4.80M toll capacity payment + $6M BESS lease deducted) |
+| Phase C procurement winner | **LMP only** — toll gross value ($2.18M) doesn't cover its $4.80M capacity payment; BESS arb doesn't cover its $3M/site lease |
+| Verification | 90d confirmed under LMP-only procurement at $36,377.26M |
+| **FINAL POLICY** | **90d × LMP only → $36,377.26M mean profit** |
 
-The 95d cadence is invariant across all four committed drift scenarios (`baseline` / `ai_structural` / `mild_drift` / `ai_plus_brent` — snapshots in `finalized_outputs/`) under both the no-stress and the `uri_full` Uri-storm overlays. The LMP-only procurement choice is invariant only under no-stress; under `uri_full` it **flips to LMP + toll** across all four drifts (see *Uri-stress drift robustness* below). No-stress final profit spans $148,104.70M–$148,106.34M across the four (tight ~$1.6M range, drift is essentially noise at these revenue levels).
+The 90d cadence is invariant across all four committed drift scenarios (`baseline` / `ai_structural` / `mild_drift` / `ai_plus_brent` — snapshots in `finalized_outputs/`) under both the no-stress and the `uri_full` Uri-storm overlays. The LMP-only procurement choice is invariant only under no-stress; under `uri_full` it **flips to LMP + toll** across all four drifts (see *Uri-stress drift robustness* below). No-stress final profit spans $36,375.63M–$36,377.26M across the four (tight ~$1.6M range, drift is essentially noise at these revenue levels).
 
-**Note on the cadence-winner shift vs prior runs:** earlier runs anchored the per-release `uplift_factor` to a fixed 1.5× (and later 1.22×). These were both implicitly tied to a single cadence (the planning doc's 60-day bimonthly) and overstated per-release growth at faster cadences — which is what made 30d cadence appear optimal. Under the corrected METR-anchored cadence-dependent uplift (`metr_uplift_factor(period_days) = 2 ^ (period_days/210)`) total 6-month capability gain is essentially the same across cadences (~1.82×), so the cadence trade-off becomes purely "compute spent on training vs inference time gained." Longer cadences win because they spend less compute on training (each release's compute floor grows with date). The optimal cadence shifted from **30d → 95d**, with profit reset from a spuriously high $217B back down to $148B.
+**Note on the cadence-winner shift vs prior runs:** earlier runs anchored the per-release `uplift_factor` to a fixed 1.5× (and later 1.22×). These were both implicitly tied to a single cadence (the planning doc's 60-day bimonthly) and overstated per-release growth at faster cadences — which is what made 30d cadence appear optimal. Under the corrected METR-anchored cadence-dependent uplift (`metr_uplift_factor(period_days) = 2 ^ (period_days/210)`) total 6-month capability gain is essentially the same across cadences (~1.82×), so the cadence trade-off becomes purely "compute spent on training vs inference time gained." Longer cadences win because they spend less compute on training (each release's compute floor grows with date). The optimal cadence stabilized at **90d**, with the final-profit magnitude resetting once the H-100 throughput parameters (520/396 TF/s sustained, 60/40 SXM/PCIe) and 0.25 token-revenue global haircut were applied on 2026-05-24.
 
 ---
 
@@ -315,59 +315,58 @@ After Phase A across the candidate cadences (6 pass filter), 50 MC paths under *
 
 | Cadence | Mean profit ($M) | Std |
 |---|---:|---:|
-| **every_95d ⭐** | **148,101.32** | **1.25** |
-| every_90d | 144,750.82 | 1.25 |
-| every_85d | 141,553.99 | 1.25 |
-| every_75d | 135,573.50 | 1.25 |
-| every_74d | 134,889.12 | 1.25 |
-| every_63d | 126,278.48 | 1.25 |
-| every_60d (planning-doc) | 123,567.43 | 1.25 |
-| every_45d | 106,465.59 | 1.25 |
-| every_30d | 76,118.89 | 1.25 |
-| every_25d | 59,081.16 | 1.25 |
+| **every_90d ⭐** | **36,372.21** | **1.24** |
+| every_85d | 35,586.74 | 1.24 |
+| every_75d | 34,142.46 | 1.24 |
+| every_74d | 33,976.14 | 1.24 |
+| every_63d | 31,873.46 | 1.24 |
+| every_60d (planning-doc) | 31,209.18 | 1.24 |
+| every_45d | 27,067.02 | 1.24 |
+| every_30d | 19,747.15 | 1.24 |
+| every_25d | 15,645.66 | 1.24 |
 
-Stage 2 refines `[66d, 78d, 89d, 95d]` — none beat 95d. Cadence-vs-cadence gaps are still billions; the cadence ranking decision is rock solid. The shape of the cadence curve is now monotone in the explored range above 30d: longer cadences dominate because the total 6-month capability gain is capped (~1.82× regardless of cadence — METR-consistent), so the trade-off is purely "compute spent on training vs inference time gained."
+Stage 2 refines `[63d, 74d, 85d, 90d]` (±30 % around 90d; the +30 % point at 117d is rejected by the capacity-cap filter) — none beat 90d. Cadence-vs-cadence gaps are still billions; the cadence ranking decision is rock solid. The shape of the cadence curve is monotone in the explored range above 25d: longer cadences dominate because the total 6-month capability gain is capped (~1.82× regardless of cadence — METR-consistent), so the trade-off is purely "compute spent on training vs inference time gained."
 
-**Phase B locked-cadence breakdown (95d, all-on procurement, averaged across 50 paths):**
-- Inference revenue $148,140.63M; BESS sell-to-grid $5.49M
-- LMP cost $27.04M; toll cost $4.28M; BESS charge $2.69M; BESS lease $6.00M; **toll capacity payment $4.80M**
-- **Profit $148,101.32M** (with all-on procurement — diagnostic only)
-- LP procurement (when all options enabled): LMP 91.4 % / toll 8.6 %
-- Compute split: train 157,623 grid-MWh / inf 718,138 grid-MWh (= **18 % train, 82 % inf**). Far less training than under the prior 30d-winner runs (53 % train / 47 % inf), because a quarterly release cycle frees up most of the compute for inference.
+**Phase B locked-cadence breakdown (90d, all-on procurement, averaged across 50 paths):**
+- Inference revenue $36,411.40M; BESS sell-to-grid $5.43M
+- LMP cost $26.88M; toll cost $4.25M; BESS charge $2.69M; BESS lease $6.00M; **toll capacity payment $4.80M**
+- **Profit $36,372.21M** (with all-on procurement — diagnostic only)
+- LP procurement (when all options enabled): LMP 91.5 % / toll 8.5 %
+- Compute split: train 157,296 grid-MWh / inf 716,691 grid-MWh (= **18 % train, 82 % inf**). A quarterly release cycle frees up most of the compute for inference.
 
-**Phase C — procurement decision at 95d (top 4 of 8 combos):**
+**Phase C — procurement decision at 90d (top 5 of 8 combos):**
 
 | Combo | Mean profit ($M) | Δ vs LMP-only |
 |---|---:|---:|
-| **LMP only ⭐** | **148,106.34** | — |
-| LMP + BESS West only | 148,105.26 | −$1.08M  (arb < $3M site lease) |
-| LMP + BESS Houston only | 148,104.99 | −$1.35M  (arb < $3M site lease) |
-| LMP + BESS both | 148,103.91 | −$2.43M  (two leases compound) |
-| LMP + toll | 148,103.75 | −$2.59M  ($2.21M option value < $4.80M lease) |
+| **LMP only ⭐** | **36,377.26** | — |
+| LMP + BESS West only | 36,376.18 | −$1.08M  (arb < $3M site lease) |
+| LMP + BESS Houston only | 36,375.91 | −$1.35M  (arb < $3M site lease) |
+| LMP + BESS both | 36,374.83 | −$2.43M  (two leases compound) |
+| LMP + toll | 36,374.64 | −$2.62M  ($2.18M option value < $4.80M lease) |
 
-Phase C deltas are **essentially identical** to those under the prior 30d-winner runs (−$1.08M / −$1.35M / −$2.59M now vs the same numbers under 30d) — the procurement decision is driven by fixed lease costs (unchanged), not by absolute revenue. The cadence change shifted the absolute profit floor but left the procurement ranking ordering untouched.
+Phase C deltas are **driven by fixed lease costs, not by absolute revenue**: −$1.08M / −$1.35M / −$2.62M map to ($3M West-site lease − $1.92M West arb net base value) / ($3M Houston-site lease − $1.65M Houston arb net base value) / ($4.80M toll lease − $2.18M toll gross option value). The lease bills are flat across cadence and drift, which is why the procurement ranking is robust even though the absolute profit floor shifts.
 
 **Drift robustness — final policy is invariant across all four committed drift scenarios:**
 
 | Scenario | gas / power drift | Final profit ($M) | Full-cost winner | Variable-cost winner | Toll K\* ($/kW-mo) |
 |---|---|---:|---|---|---:|
-| baseline                        | 0 / 0           | 148,106.34 | LMP only | LMP + toll + BESS both | $3.68 |
-| ai_structural                   | 0.5 % / 1 %     | 148,105.93 | LMP only | LMP + toll + BESS both | $3.77 |
-| mild_drift (~½ Brent shock)     | 3 % / 1.5 %     | 148,105.72 | LMP only | LMP + toll + BESS both | $3.74 |
-| ai_plus_brent (structural+full) | 6.5 % / 4 %     | 148,104.70 | LMP only | LMP + toll + BESS both | $3.89 |
+| baseline                        | 0 / 0           | 36,377.26 | LMP only | LMP + toll + BESS both | $3.63 |
+| ai_structural                   | 0.5 % / 1 %     | 36,376.86 | LMP only | LMP + toll + BESS both | $3.73 |
+| mild_drift (~½ Brent shock)     | 3 % / 1.5 %     | 36,376.65 | LMP only | LMP + toll + BESS both | $3.69 |
+| ai_plus_brent (structural+full) | 6.5 % / 4 %     | 36,375.63 | LMP only | LMP + toll + BESS both | $3.84 |
 
-Drift moves final profit by only $1.64M across the full 0 % → 6.5 % gas range — essentially noise at this revenue scale. The breakeven toll capacity-payment rate (K\*) rises modestly with drift (more volatile prices → more toll-exercise opportunity → higher gross option value), but stays well below the $8/kW-mo default seller rate in every scenario.
+Drift moves final profit by only $1.63M across the full 0 % → 6.5 % gas range — essentially noise at this revenue scale. The breakeven toll capacity-payment rate (K\*) rises modestly with drift (more volatile prices → more toll-exercise opportunity → higher gross option value), but stays well below the $8/kW-mo default seller rate in every scenario.
 
 **Uri-stress drift robustness — procurement winner flips to LMP+toll across all four drifts under `uri_full` overlay:**
 
 | Scenario | gas / power drift | Final profit ($M) | Full-cost winner | Δ vs LMP-only | Toll K\* ($/kW-mo) |
 |---|---|---:|---|---:|---:|
-| baseline                        | 0 / 0           | 148,094.77 | LMP + toll | +$2.30M | $11.83 |
-| ai_structural                   | 0.5 % / 1 %     | 148,094.42 | LMP + toll | +$2.35M | $11.92 |
-| mild_drift (~½ Brent shock)     | 3 % / 1.5 %     | 148,094.19 | LMP + toll | +$2.33M | $11.88 |
-| ai_plus_brent (structural+full) | 6.5 % / 4 %     | 148,093.26 | LMP + toll | +$2.42M | ≳$12 (exceeds sweep max) |
+| baseline                        | 0 / 0           | 36,365.67 | LMP + toll | +$2.27M | $11.78 |
+| ai_structural                   | 0.5 % / 1 %     | 36,365.32 | LMP + toll | +$2.32M | $11.87 |
+| mild_drift (~½ Brent shock)     | 3 % / 1.5 %     | 36,365.09 | LMP + toll | +$2.30M | $11.84 |
+| ai_plus_brent (structural+full) | 6.5 % / 4 %     | 36,364.16 | LMP + toll | +$2.39M | $11.98 |
 
-Under Uri-style scarcity, the toll's gross option value at K=$0, 100 MW reservation triples from ~$2.21M (no-stress) to ~$7.10M, comfortably clearing the $4.80M capacity payment at $8/kW-mo. Breakeven K\* rises from ~$3.7 → ~$11.8/kW-mo (and exceeds the $12 sweep max under `ai_plus_brent`). The variable-cost winner remains **LMP + toll + BESS both** in every drift; VC gap widens from ~$5.8M (no-stress) to ~$9.1M (Uri). Cross-snapshot detail lives at `finalized_outputs/SNAPSHOT_COMPARISON_uri_full.{md,html}` + `comparison_figures_uri_full/`.
+Under Uri-style scarcity, the toll's gross option value at K=$0, 100 MW reservation triples from ~$2.18M (no-stress) to ~$7.07M, comfortably clearing the $4.80M capacity payment at $8/kW-mo. Breakeven K\* rises from ~$3.7 → ~$11.9/kW-mo across the four drifts. The variable-cost winner remains **LMP + toll + BESS both** in every drift; VC gap widens from ~$5.8M (no-stress) to ~$9.1M (Uri). Cross-snapshot detail lives at `finalized_outputs/SNAPSHOT_COMPARISON_uri_full.{md,html}` + `comparison_figures_uri_full/`.
 
 **Per-K hourly note:** the no-stress snapshots emit three per-K regime folders (`lmp_only`, `lmp_plus_toll_100mw`, `lmp_plus_toll_60mw`) because LMP-only wins above K\*≈$3.7. The Uri-stress snapshots emit only the two `lmp_plus_toll_*` regimes — every reported K sits below K\*≈$11.8, so LMP+toll wins everywhere and the `lmp_only` regime is unreachable.
 
@@ -388,10 +387,12 @@ python model\run_monte_carlo.py -n 200 --scheme doc_blended --cadence 30
 ```
 
 Reports mean, std, percentiles of profit across simulated paths.
-At frontier GPT-5.4Pro token prices, profit is essentially **invariant
-to price-path realization** (CoV ≈ 1e-5) — inference revenue
-($167K/grid-MWh) is so large that LMP variability is a rounding error.
-BESS arbitrage remains net-negative by ~$3M vs $6M lease.
+Under the planning-doc 0.25 token-revenue global haircut, profit is
+essentially **invariant to price-path realization** (CoV ≈ 4e-5 — Phase C
+LMP-only std $1.60M on $36,377M mean) because inference revenue
+(~$41.7K/grid-MWh after the haircut) still dwarfs LMP variability.
+BESS arbitrage remains net-negative by ~$2.4M vs $6M total lease (both
+sites) — confirmed in every drift scenario under no-stress.
 
 The 3-series OU calibration (ported from `ltemry/FTG-Final-Project`)
 captures:
@@ -576,15 +577,20 @@ variable fuel + O&M are RFP-firm. The RFP leaves three knobs unspecified:
 3. **Daily MWh cap** on the contract (next subsection).
 
 **Why the buyer's optimal ≠ the seller's asking price**: the toll's
-gross option value across our 4 drift scenarios is $1.14–1.21M / 6mo at
+gross option value across our 4 drift scenarios is $2.18–2.30M / 6mo at
 the full 100 MW reservation (independently corroborated by
-ltemry/FTG-Final-Project at $1.42M). At $8/kW-mo × 100 MW × 6mo = $4.8M
-the lease costs ~4× the option value, so the LMP-only baseline wins
-Phase C in every scenario. The two sweeps quantify the structure:
-`--capacity-payment-sweep` shows the breakeven K* (~$2/kW-mo) at fixed
-100 MW; `--reservation-sweep` shows whether a smaller reservation could
-salvage the deal at $8/kW-mo (it doesn't — LP is bang-bang in MW, so
-optimal reservation collapses to 0 or 100 with no middle ground).
+ltemry/FTG-Final-Project at $1.42M HSC basis — our broader cost scope
+explains the ~$0.7M gap). At $8/kW-mo × 100 MW × 6mo = $4.8M the lease
+costs ~2× the option value, so the LMP-only baseline wins Phase C in
+every no-stress drift scenario. The two sweeps quantify the structure:
+`--capacity-payment-sweep` shows the breakeven K\* (~$3.6–3.8/kW-mo) at
+fixed 100 MW; `--reservation-sweep` shows whether a smaller reservation
+could salvage the deal at $8/kW-mo (it doesn't — LP is bang-bang in MW,
+so optimal reservation collapses to 0 or 100 with no middle ground
+outside a narrow ~$0.04-wide K band where 60 MW is optimal). Under the
+`uri_full` Uri-stress overlay the toll's gross value triples to
+~$7.07–7.19M and the procurement winner flips to LMP+toll across all
+four drifts; K\* rises to ~$11.8–12.0/kW-mo.
 
 The cap is exposed as `Scenario.toll_max_mwh_per_day` (CLI flag
 `--toll-cap`) and `assumptions.py` exports three empirically-anchored

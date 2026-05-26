@@ -304,30 +304,30 @@ match the planning doc's stated R1-R5 numerical values. R1 at 6/1/2026
 projects 1.02T params (vs doc's 1.29T), 6.6e10 petaFLOPS, **36,289 cMWh**
 of training compute. At 100% compute on both sites this takes ~10 days.
 
-#### `doc_blended` scheme (METR-anchored cadence-dependent uplift × 270-day market decay, all-on procurement)
+#### `doc_blended` scheme (METR-anchored cadence-dependent uplift × 270-day market decay × 0.25 global haircut, all-on procurement)
 
-Phase A ranking from `run_planning_doc.py --mc 50` against the 2026-05-23 defaults
-(`metr_uplift_factor(period_days) = 2 ^ (period_days/210)` × `TOKEN_PRICE_HALFLIFE_DAYS=270`):
+Phase A ranking from `run_planning_doc.py --mc 50` against the 2026-05-24 finalized defaults
+(`metr_uplift_factor(period_days) = 2 ^ (period_days/210)` × `TOKEN_PRICE_HALFLIFE_DAYS=270` × `TOKEN_REVENUE_GLOBAL_MULTIPLIER=0.25`, with finalized H-100 throughput 520/396 TF/s sustained, 60/40 SXM/PCIe):
 
 | Schedule | Mean profit ($M) | std | Per-release uplift |
 |---|---:|---:|---:|
-| **every_95d** ⭐ | **148,101.32** | 1.25 | 1.371× |
-| every_90d | 144,750.82 | 1.25 | 1.346× |
-| every_85d | 141,553.99 | 1.25 | 1.321× |
-| every_75d | 135,573.50 | 1.25 | 1.273× |
-| every_74d | 134,889.12 | 1.25 | 1.268× |
-| every_63d | 126,278.48 | 1.25 | 1.229× |
-| every_60d (= planning-doc bimonthly) | 123,567.43 | 1.25 | 1.219× |
-| every_45d | 106,465.59 | 1.25 | 1.160× |
-| every_30d (monthly) | 76,118.89 | 1.25 | 1.105× |
-| every_25d | 59,081.16 | 1.25 | 1.087× |
+| **every_90d** ⭐ | **36,372.21** | 1.24 | 1.346× |
+| every_85d | 35,586.74 | 1.24 | 1.321× |
+| every_75d | 34,142.46 | 1.24 | 1.273× |
+| every_74d | 33,976.14 | 1.24 | 1.268× |
+| every_63d | 31,873.46 | 1.24 | 1.229× |
+| every_60d (= planning-doc bimonthly) | 31,209.18 | 1.24 | 1.219× |
+| every_45d | 27,067.02 | 1.24 | 1.160× |
+| every_30d (monthly) | 19,747.15 | 1.24 | 1.105× |
+| every_25d | 15,645.66 | 1.24 | 1.087× |
 
-**Quarterly retraining wins** at 95-day cadence. Longer cadences dominate because under cadence-dependent METR uplift the total 6-month capability gain is essentially fixed (~1.82× regardless of cadence), so the trade-off reduces to "compute spent on training vs inference time gained." Faster cadences burn more compute on training without proportional revenue gain. The cadence-vs-cadence gaps are still huge relative to MC noise (~$1M path-stdev), so the cadence decision is robust at N=50.
+**Quarterly retraining wins** at 90-day cadence. Longer cadences dominate because under cadence-dependent METR uplift the total 6-month capability gain is essentially fixed (~1.82× regardless of cadence), so the trade-off reduces to "compute spent on training vs inference time gained." Faster cadences burn more compute on training without proportional revenue gain. The cadence-vs-cadence gaps are still huge relative to MC noise (~$1.2M path-stdev), so the cadence decision is robust at N=50. Stage-2 refinement around 90d explores [63, 74, 85, 90] — none beat 90d.
 
 This is a meaningful shift from the legacy fixed-uplift configurations: under fixed `uplift_factor=1.5` (planning-doc heuristic) the per-release multiplier compounded as `1.5^k`, artificially inflating short cadences. The METR-consistent uplift caps total compounding to what capability growth actually delivers over the 6-month horizon.
 
-The planning doc's literal bimonthly cadence still underperforms the
-optimal monthly cadence — by $8.2B under `doc_blended`. The exact
+The planning doc's literal 60-day bimonthly cadence still underperforms
+the optimal 90-day cadence — by $5.16B under the finalized `doc_blended`
+defaults ($36,372.21M at 90d vs $31,209.18M at 60d). The exact
 calendar dates (8/22, 10/22, 12/22) are no longer hardcoded; instead the
 schedule chains `R(k+1).start = R(k).release`, with R1 now 6/1 → 6/11
 (10-day initial training at 100% compute).
